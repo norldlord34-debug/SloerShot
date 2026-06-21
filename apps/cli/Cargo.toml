@@ -1,0 +1,16 @@
+[package]
+name = "shotcli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "SloerShot command-line demo exercising the shotcore pipeline end to end."
+
+[[bin]]
+name = "shotcli"
+path = "src/main.rs"
+
+[dependencies]
+shotcore = { path = "../../core/shotcore" }
+image.workspace = true
+ab_glyph.workspace = true
+clap.workspace = true

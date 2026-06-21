@@ -1,0 +1,27 @@
+[package]
+name = "shotcore"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "SloerShot shared core: capture geometry, non-destructive annotation model, editor controller, export/beautify, history, OCR + smart redaction, video/GIF, pins, licensing. Pure Rust, cross-platform, exposed over a C ABI."
+
+[lib]
+name = "shotcore"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+image = { workspace = true, features = ["gif"] }
+imageproc.workspace = true
+ab_glyph.workspace = true
+ed25519-dalek.workspace = true
+base64.workspace = true
+sha2.workspace = true
+rand.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
+image = { workspace = true, features = ["gif"] }

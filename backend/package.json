@@ -1,0 +1,16 @@
+{
+    "name": "sloershot-backend",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "description": "SloerShot backend: auth, Stripe subscriptions, and ed25519 entitlement issuance.",
+    "scripts": {
+        "start": "node src/server.js",
+        "issue-demo": "node scripts/issue-demo.js",
+ "test": "node scripts/test-share.js && node scripts/test-share-http.js && node scripts/test-auth.js"
+    },
+    "dependencies": {
+        "dotenv": "^16.4.5",
+        "express": "^4.19.2"
+    }
+}

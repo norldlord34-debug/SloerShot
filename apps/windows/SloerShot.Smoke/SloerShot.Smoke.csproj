@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net8.0-windows</TargetFramework>
+        <Nullable>enable</Nullable>
+        <LangVersion>latest</LangVersion>
+        <RootNamespace>SloerShot.Smoke</RootNamespace>
+        <AssemblyName>SloerShot.Smoke</AssemblyName>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="System.Drawing.Common" Version="8.0.*" />
+    </ItemGroup>
+    <ItemGroup>
+        <Compile Include="..\SloerShot.App\Interop\ShotCore.cs" Link="ShotCore.cs" />
+        <Compile Include="..\SloerShot.App\Interop\NativeScreen.cs" Link="NativeScreen.cs" />
+ <Compile Include="..\SloerShot.App\Editor\AnnotationParser.cs" Link="AnnotationParser.cs" />
+        <Compile Include="..\SloerShot.App\Capture\FrozenScreenCapture.cs" Link="FrozenScreenCapture.cs" />
+    </ItemGroup>
+    <ItemGroup>
+        <None Include="..\..\..\target\debug\shotcore.dll" Condition="Exists('..\..\..\target\debug\shotcore.dll')" Link="shotcore.dll">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+</Project>

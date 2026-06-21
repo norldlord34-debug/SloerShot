@@ -1,0 +1,4 @@
+module CShotCore {
+ header "shotcore.h"
+ export *
+}

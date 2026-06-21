@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+        <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+        <RootNamespace>SloerShot</RootNamespace>
+        <UseWinUI>true</UseWinUI>
+        <Nullable>enable</Nullable>
+        <LangVersion>latest</LangVersion>
+        <Platform>x64</Platform>
+        <Platforms>x64;arm64</Platforms>
+        <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+        <SelfContained>false</SelfContained>
+ <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+        <WindowsPackageType>None</WindowsPackageType>
+        <EnableMsixTooling>true</EnableMsixTooling>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.*" />
+        <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.*" />
+ <PackageReference Include="System.Drawing.Common" Version="8.0.*" />
+    </ItemGroup>
+    <!-- Copy the native core (build it first with cargo, release profile). -->
+    <ItemGroup>
+        <None Include="..\..\..\target\release\shotcore.dll" Condition="Exists('..\..\..\target\release\shotcore.dll')" Link="shotcore.dll">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+</Project>

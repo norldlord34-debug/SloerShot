@@ -1,56 +1,73 @@
 name: CI
 on:
- push:
- branches: [ main ]
- pull_request:
+  push:
+    branches: [ main ]
+  pull_request:
 jobs:
- core:
- name: Rust core + workspace
- runs-on: ubuntu-latest
- steps:
- - uses: actions/checkout@v4
- - uses: dtolnay/rust-toolchain@stable
- - name: Test the shared core
- run: cargo test --workspace
- - name: Build the workspace
- run: cargo build --workspace
- - name: Run the CLI parity demo
- run: cargo run -p shotcli -- parity
- backend:
- name: Node backend
- runs-on: ubuntu-latest
- steps:
- - uses: actions/checkout@v4
- - uses: actions/setup-node@v4
- with:
- node-version: 20
- - name: Install backend deps
- working-directory: backend
- run: npm install
- - name: Run backend tests
- working-directory: backend
- run: npm test
- macos:
- name: macOS app (Swift)
- runs-on: macos-14
- steps:
- - uses: actions/checkout@v4
- - uses: dtolnay/rust-toolchain@stable
- - name: Build the core dylib
- run: cargo build -p shotcore --release
- - name: swift build the macOS app
- working-directory: apps/macos
- run: swift build
- windows:
- name: Windows app (WinUI 3)
- runs-on: windows-latest
- steps:
- - uses: actions/checkout@v4
- - uses: dtolnay/rust-toolchain@stable
- - name: Build the core dll
- run: cargo build -p shotcore
- - uses: actions/setup-dotnet@v4
- with:
- dotnet-version: 8.0.x
- - name: dotnet build the Windows app
- run: dotnet build apps/windows/SloerShot.App/SloerShot.App.csproj -c Debug
+  core:
+    name: Rust core + workspace
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Test the shared core
+        run: cargo test --workspace
+      - name: Build the workspace
+        run: cargo build --workspace
+      - name: Run the CLI parity demo
+        run: cargo run -p shotcli -- parity
+  backend:
+    name: Node backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install backend deps
+        working-directory: backend
+        run: npm install
+      - name: Run backend tests
+        working-directory: backend
+        run: npm test
+  macos:
+    name: macOS app (Swift)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build the core dylib (release)
+        run: cargo build -p shotcore --release
+      - name: swift build the macOS app
+        working-directory: apps/macos
+        run: swift build -c release
+      - name: Stage macOS build products
+        run: |
+          mkdir -p dist/macos
+          cp target/release/libshotcore.dylib dist/macos/ || true
+          cp apps/macos/.build/release/SloerShot dist/macos/ || true
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sloershot-macos
+          path: dist/macos
+          if-no-files-found: warn
+  windows:
+    name: Windows app (WinUI 3)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build the core dll (release, matches csproj copy)
+        run: cargo build -p shotcore --release
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: dotnet build the Windows app
+        run: dotnet build apps/windows/SloerShot.App/SloerShot.App.csproj -c Release
+      - name: Upload Windows .exe artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sloershot-windows-exe
+          path: apps/windows/SloerShot.App/bin/**
+          if-no-files-found: warn

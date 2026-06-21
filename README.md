@@ -1,5 +1,8 @@
 # SloerShot
 
+[![CI](https://github.com/norldlord34-debug/SloerShot/actions/workflows/ci.yml/badge.svg)](https://github.com/norldlord34-debug/SloerShot/actions/workflows/ci.yml)
+
+
 Native, on-device screenshot and annotation tooling for Windows and macOS, built
 around a single shared Rust core. SloerShot pushes past the BridgeShot concept with a
 richer annotation model, redaction that destroys pixels on export, background
@@ -10,6 +13,25 @@ This repository proves the hard part end to end: the cross-platform core is full
 implemented and unit-tested, a runnable CLI exercises the whole pipeline, and a Node
 backend issues subscription entitlements that the core verifies offline. The native
 UI shells are scaffolded with their core bindings already written.
+
+## Quickstart
+```
+git clone https://github.com/norldlord34-debug/SloerShot.git
+cd SloerShot
+
+# Core: run the tests and the end-to-end demo
+cargo test -p shotcore
+cargo run -p shotcli -- demo --out assets/out
+
+# Backend: install + test
+npm install --prefix backend; npm test --prefix backend
+
+# Windows GUI (needs the .NET SDK + Windows App SDK)
+cargo build -p shotcore --release
+dotnet build apps/windows/SloerShot.App/SloerShot.App.csproj -c Debug
+
+# macOS GUI (needs a Mac with Xcode): build the core, then swift build in apps/macos
+```
 
 ## Status at a glance
 

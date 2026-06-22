@@ -2169,3 +2169,20 @@ let ratio = if f.aspect_w > 0 && f.aspect_h > 0 { Some(f.aspect_w as f64 / f.asp
 let out = crate::beautify::beautify_framed(&base, &f.beautify, ratio, crate::beautify::Alignment::from_index(f.align));
 match out.save(&op) { Ok(()) => OK, Err(_) => ERR_IMAGE }
 }
+
+
+/// Encode all frame-*.png files in a directory (sorted) into an animated looping GIF at out_path.
+/// Reuses the tested core GIF encoder. Returns OK or an error code.
+#[no_mangle]
+pub extern "C" fn shotcore_encode_gif_dir(dir_path: *const c_char, fps: u32, max_width: u32, out_path: *const c_char) -> c_int {
+let dir = match unsafe { cstr_to_string(dir_path) } { Some(s) => s, None => return ERR_ARG };
+let outp = match unsafe { cstr_to_string(out_path) } { Some(s) => s, None => return ERR_ARG };
+let mut entries: Vec<std::path::PathBuf> = match std::fs::read_dir(&dir) {
+Ok(rd) => rd.filter_map(|e| e.ok().map(|e| e.path())).filter(|p| p.extension().map(|x| x == "png").unwrap_or(false)).collect(),
+Err(_) => return ERR_IMAGE,
+};
+entries.sort();
+if entries.is_empty() { return ERR_IMAGE; }
+let file = match std::fs::File::create(&outp) { Ok(f) => f, Err(_) => return ERR_IMAGE };
+match crate::video::encode_gif_from_files(&entries, fps.max(1), max_width, std::io::BufWriter::new(file)) { Ok(_) => OK, Err(_) => ERR_IMAGE }
+}

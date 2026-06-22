@@ -52,6 +52,8 @@ Title="SloerShot">
 <MenuFlyoutItem Text="Window" Tag="window" Click="OnCaptureOption" />
 <MenuFlyoutItem Text="Fullscreen" Tag="full" Click="OnCaptureOption" />
 <MenuFlyoutItem Text="Scrolling Capture" Tag="scroll" Click="OnCaptureOption" />
+<MenuFlyoutSeparator />
+<MenuFlyoutItem x:Name="RecordMenuItem" Text="Start Recording" Click="OnToggleRecording" />
 </MenuFlyout>
 </DropDownButton.Flyout>
 </DropDownButton>

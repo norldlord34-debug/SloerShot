@@ -253,4 +253,7 @@ public static extern void EditorSetStrokeWidth(IntPtr ed, double width);
 
 [DllImport(Lib, EntryPoint = "shotcore_deskew", CharSet = CharSet.Ansi)]
 public static extern int Deskew(string inPath, string outPath);
+
+ [DllImport(Lib, EntryPoint = "shotcore_encode_gif_dir", CharSet = CharSet.Ansi)]
+ public static extern int EncodeGifDir(string dirPath, uint fps, uint maxWidth, string outPath);
 }

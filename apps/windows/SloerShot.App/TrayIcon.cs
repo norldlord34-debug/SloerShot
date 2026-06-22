@@ -15,7 +15,7 @@ public sealed class TrayIcon : IDisposable
 {
  private TaskbarIcon? _icon;
 
- public void Setup(Action onShow, Action<string> onCapture, Action onSettings, Action onQuit)
+ public void Setup(Action onShow, Action<string> onCapture, Action onRecord, Action onSettings, Action onQuit)
  {
  var menu = new MenuFlyout();
  void AddItem(string text, Action act) { var mi = new MenuFlyoutItem { Text = text }; mi.Click += (_, _) => act(); menu.Items.Add(mi); }
@@ -23,6 +23,8 @@ public sealed class TrayIcon : IDisposable
  AddItem("Capture Window", () => onCapture("window"));
  AddItem("Capture Fullscreen", () => onCapture("full"));
  AddItem("Scrolling Capture", () => onCapture("scroll"));
+ menu.Items.Add(new MenuFlyoutSeparator());
+ AddItem("Record / Stop Recording", onRecord);
  menu.Items.Add(new MenuFlyoutSeparator());
  AddItem("Open SloerShot", onShow);
  AddItem("Settings", onSettings);

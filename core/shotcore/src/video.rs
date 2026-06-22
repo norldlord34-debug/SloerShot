@@ -97,6 +97,33 @@ pub fn encode_gif<W: Write>(frames: &[RgbaImage], fps: u32, writer: W) -> Result
     Ok(())
 }
 
+/// Stream-encode GIF from image files on disk one at a time (bounded memory),
+/// optionally downscaling each frame to max_width (0 = no limit).
+pub fn encode_gif_from_files<W: Write>(paths: &[std::path::PathBuf], fps: u32, max_width: u32, writer: W) -> Result<(), VideoError> {
+ if paths.is_empty() {
+ return Err(VideoError::Empty);
+ }
+ let delay_ms = (1000.0 / fps.max(1) as f64).round().max(1.0) as u32;
+ let mut encoder = GifEncoder::new(writer);
+ encoder.set_repeat(Repeat::Infinite)?;
+ let mut any = false;
+ for p in paths {
+ if let Ok(img) = image::open(p) {
+ let mut rgba = img.to_rgba8();
+ if max_width > 0 && rgba.width() > max_width {
+ let h = ((rgba.height() as f64) * (max_width as f64) / (rgba.width() as f64)).round().max(1.0) as u32;
+ rgba = image::imageops::resize(&rgba, max_width, h, image::imageops::FilterType::Triangle);
+ }
+ let frame = Frame::from_parts(rgba, 0, 0, Delay::from_numer_denom_ms(delay_ms, 1));
+ encoder.encode_frame(frame)?;
+ any = true;
+ }
+ }
+ if !any {
+ return Err(VideoError::Empty);
+ }
+ Ok(())
+}
 /// A sink native encoders implement to produce formats beyond GIF, such as MP4
 /// via Media Foundation (Windows) or VideoToolbox (macOS). The core feeds frames;
 /// the platform owns the codec.

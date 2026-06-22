@@ -47,6 +47,9 @@ private Microsoft.UI.Xaml.Shapes.Rectangle? _marquee;
 private bool _suppressSelection;
 private TrayIcon? _tray;
 private bool _reallyQuit;
+private RecordingController? _recorder;
+private DispatcherTimer? _recTimer;
+private DateTime _recStart;
 public MainWindow()
 {
 this.InitializeComponent();
@@ -224,6 +227,46 @@ int sw = 0, sh = 0; try { using var im = System.Drawing.Image.FromFile(outPath);
 FinishCapture(outPath, sw, sh, "Scrolling capture stitched");
 }
 catch (Exception ex) { try { this.AppWindow.Show(); } catch { } StatusText.Text = "Scrolling capture failed: " + ex.Message; }
+}
+private async void OnToggleRecording(object sender, RoutedEventArgs e)
+{
+ if (_recorder != null && _recorder.IsRecording) { await StopRecordingAsync(); }
+ else { StartRecording(); }
+}
+private void StartRecording()
+{
+ try
+ {
+ var (vx, vy, vw, vh) = FrozenScreenCapture.VirtualScreenRect();
+ var recDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "SloerShot-rec-" + DateTime.UtcNow.Ticks);
+ _recorder = new RecordingController();
+ _recorder.Start(recDir, 10, vw, vh);
+ _recStart = DateTime.UtcNow;
+ try { RecordMenuItem.Text = "Stop Recording"; } catch { }
+ StatusText.Text = "Recording... 00:00";
+ _recTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+ _recTimer.Tick += (_, _) => { var s = (int)(DateTime.UtcNow - _recStart).TotalSeconds; StatusText.Text = $"Recording {s / 60:00}:{s % 60:00} - use Capture > Stop Recording"; };
+ _recTimer.Start();
+ }
+ catch (Exception ex) { StatusText.Text = "Recording failed: " + ex.Message; _recorder = null; }
+}
+private async System.Threading.Tasks.Task StopRecordingAsync()
+{
+ _recTimer?.Stop(); _recTimer = null;
+ var rec = _recorder; _recorder = null;
+ try { RecordMenuItem.Text = "Start Recording"; } catch { }
+ if (rec == null) return;
+ var result = rec.Stop();
+ StatusText.Text = "Encoding GIF...";
+ var outPath = System.IO.Path.Combine(CapturesFolder(), "recording-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".gif");
+ int rc = await System.Threading.Tasks.Task.Run(() => ShotCore.EncodeGifDir(result.Directory, 10, 960, outPath));
+ try { System.IO.Directory.Delete(result.Directory, true); } catch { }
+ if (rc == 0 && System.IO.File.Exists(outPath))
+ {
+ StatusText.Text = "Saved recording " + System.IO.Path.GetFileName(outPath) + " (path copied)";
+ try { var dp = new DataPackage(); dp.SetText(outPath); Clipboard.SetContent(dp); } catch { }
+ }
+ else { StatusText.Text = "GIF encode failed (" + rc + ")"; }
 }
 private void FinishCapture(string path, int w, int h, string status)
 {
@@ -836,6 +879,7 @@ private void SetupTray()
  _tray.Setup(
  onShow: ShowFromTray,
  onCapture: mode => { var dq = DispatcherQueue; if (dq != null) dq.TryEnqueue(() => DoCapture(mode)); else DoCapture(mode); },
+ onRecord: () => { var dq = DispatcherQueue; if (dq != null) dq.TryEnqueue(() => OnToggleRecording(this, new RoutedEventArgs())); },
  onSettings: () => { ShowFromTray(); var dq = DispatcherQueue; if (dq != null) dq.TryEnqueue(() => OnOpenSettings(this, new RoutedEventArgs())); },
  onQuit: () => { _reallyQuit = true; try { _tray?.Dispose(); } catch { } this.Close(); });
  }

@@ -125,6 +125,8 @@ Button("Quick OCR (copy text)") {
 Task { await model.quickOCR() }
 }
 .keyboardShortcut("t", modifiers: [.command, .shift])
+Button("Capture Text to Window") { Task { await model.ocrToPanel() } }
+.keyboardShortcut("o", modifiers: [.command, .shift])
 Button("Pick Color (hex)") {
 model.pickColor()
 }

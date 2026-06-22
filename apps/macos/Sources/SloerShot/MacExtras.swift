@@ -140,6 +140,21 @@ lastError = String(describing: error)
 return false
 }
 }
+func ocrToPanel() async -> Bool {
+do {
+let frozen = try await Capture.captureFullscreen()
+guard let sel = await SelectionOverlay.present(image: frozen) else { return false }
+guard let cropped = Capture.crop(frozen, to: sel) else { return false }
+let text = OcrService.recognizeText(cgImage: cropped, width: cropped.width, height: cropped.height) ?? ""
+guard !text.isEmpty else { Toast.show("No text found"); return false }
+let json = OcrService.recognizeJSON(cgImage: cropped, width: cropped.width, height: cropped.height)
+OcrPanel.show(text: text, ocrJson: json)
+return true
+} catch {
+lastError = String(describing: error)
+return false
+}
+}
 func pickColor() {
 ColorPickerTool.pick()
 }

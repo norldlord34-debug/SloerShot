@@ -10,6 +10,8 @@ final class AppModel: ObservableObject {
 @Published var captureDelaySeconds: Int = 0
 var lastImage: CGImage?
 var pins: [PinPanel] = []
+var recorder: RecordingEngine?
+@Published var isRecording = false
 
  @discardableResult
  func captureFullscreen() async -> Bool {
@@ -84,6 +86,13 @@ Button("Scroll Capture (window)") {
 Task { if await model.scrollCapture() { openWindow(id: "editor") } }
 }
 .keyboardShortcut("6", modifiers: [.command, .shift])
+if model.isRecording {
+Button("Stop Recording") { model.stopRecording() }
+.keyboardShortcut("2", modifiers: [.command, .shift])
+} else {
+Button("Start Recording") { model.startRecording() }
+.keyboardShortcut("2", modifiers: [.command, .shift])
+}
 Button("Quick OCR (copy text)") {
 Task { await model.quickOCR() }
 }

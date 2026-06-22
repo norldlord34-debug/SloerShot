@@ -131,6 +131,14 @@ Task { await model.quickOCR() }
 .keyboardShortcut("t", modifiers: [.command, .shift])
 Button("Capture Text to Window") { Task { await model.ocrToPanel() } }
 .keyboardShortcut("o", modifiers: [.command, .shift])
+Button("Export Recording to GIF...") {
+guard let src = GifExporter.latestRecording() else { Toast.show("No recordings found"); return }
+let sp = NSSavePanel(); sp.allowedContentTypes = [.gif]; sp.nameFieldStringValue = "SloerShot.gif"
+if sp.runModal() == .OK, let dest = sp.url {
+Toast.show("Exporting GIF...")
+Task { let ok = await GifExporter.export(from: src, to: dest); Toast.show(ok ? "Saved " + dest.lastPathComponent : "GIF export failed") }
+}
+}
 Button("Pick Color (hex)") {
 model.pickColor()
 }

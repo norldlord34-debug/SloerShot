@@ -32,6 +32,8 @@ public static class ShotCore
 
     [DllImport(Lib, EntryPoint = "shotcore_beautify_png", CharSet = CharSet.Ansi)]
     private static extern int BeautifyPngRaw(string inPath, string outPath, string optionsJson);
+ [DllImport(Lib, EntryPoint = "shotcore_beautify_framed_png", CharSet = CharSet.Ansi)]
+ private static extern int BeautifyFramedRaw(string inPath, string outPath, string optionsJson);
 
     [DllImport(Lib, EntryPoint = "shotcore_resolve_selection", CharSet = CharSet.Ansi)]
     private static extern IntPtr ResolveSelectionRaw(string desktopJson, double x, double y, double w, double h);
@@ -59,6 +61,8 @@ public static class ShotCore
 
     public static int Beautify(string inPath, string outPath, string optionsJson)
         => BeautifyPngRaw(inPath, outPath, optionsJson);
+ public static int BeautifyFramed(string inPath, string outPath, string optionsJson)
+ => BeautifyFramedRaw(inPath, outPath, optionsJson);
 
     public static string? ResolveSelection(string desktopJson, double x, double y, double w, double h)
         => TakeString(ResolveSelectionRaw(desktopJson, x, y, w, h));

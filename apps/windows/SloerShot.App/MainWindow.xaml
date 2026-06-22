@@ -253,14 +253,43 @@ Title="SloerShot">
 <DropDownButton VerticalAlignment="Center" Height="34" CornerRadius="7" Background="Transparent" BorderThickness="0" Padding="10,0">
 <TextBlock Text="Backdrop" Foreground="{StaticResource TextBrush}" />
 <DropDownButton.Flyout>
-<MenuFlyout>
-<MenuFlyoutItem Text="Indigo gradient" Tag="indigo" Click="OnBackdrop" />
-<MenuFlyoutItem Text="Ocean gradient" Tag="ocean" Click="OnBackdrop" />
-<MenuFlyoutItem Text="Sunset gradient" Tag="sunset" Click="OnBackdrop" />
-<MenuFlyoutItem Text="White padding" Tag="white" Click="OnBackdrop" />
-<MenuFlyoutItem Text="Dark padding" Tag="dark" Click="OnBackdrop" />
-<MenuFlyoutItem Text="Tight" Tag="tight" Click="OnBackdrop" />
-</MenuFlyout>
+<Flyout>
+<StackPanel Spacing="8" Width="260">
+<TextBlock Text="Background" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
+<ComboBox x:Name="BgTypeCombo" Header="Type" SelectedIndex="0" Width="230" SelectionChanged="OnBgTypeChanged">
+<ComboBoxItem Content="Gradient" /><ComboBoxItem Content="Color" /><ComboBoxItem Content="Transparent" />
+</ComboBox>
+<TextBlock Text="Gradient" FontSize="12" Foreground="{StaticResource SubtleTextBrush}" />
+<StackPanel Orientation="Horizontal" Spacing="6">
+<Button Width="24" Height="24" CornerRadius="6" Background="#6366F1" BorderThickness="0" Padding="0" Tag="Indigo" Click="OnBgPreset" />
+<Button Width="24" Height="24" CornerRadius="6" Background="#F97316" BorderThickness="0" Padding="0" Tag="Sunset" Click="OnBgPreset" />
+<Button Width="24" Height="24" CornerRadius="6" Background="#0EA5E9" BorderThickness="0" Padding="0" Tag="Ocean" Click="OnBgPreset" />
+<Button Width="24" Height="24" CornerRadius="6" Background="#22C55E" BorderThickness="0" Padding="0" Tag="Forest" Click="OnBgPreset" />
+<Button Width="24" Height="24" CornerRadius="6" Background="#EC4899" BorderThickness="0" Padding="0" Tag="Candy" Click="OnBgPreset" />
+<Button Width="24" Height="24" CornerRadius="6" Background="#0F172A" BorderThickness="0" Padding="0" Tag="Midnight" Click="OnBgPreset" />
+<Button Width="24" Height="24" CornerRadius="6" Background="#262626" BorderThickness="0" Padding="0" Tag="Graphite" Click="OnBgPreset" />
+</StackPanel>
+<TextBlock Text="Color" FontSize="12" Foreground="{StaticResource SubtleTextBrush}" />
+<StackPanel Orientation="Horizontal" Spacing="6">
+<Button Width="24" Height="24" CornerRadius="6" Background="#FFFFFF" BorderThickness="0" Padding="0" Tag="FFFFFF" Click="OnBgColorSwatch" />
+<Button Width="24" Height="24" CornerRadius="6" Background="#111111" BorderThickness="0" Padding="0" Tag="111111" Click="OnBgColorSwatch" />
+<Button Width="24" Height="24" CornerRadius="6" Background="#1E88E5" BorderThickness="0" Padding="0" Tag="1E88E5" Click="OnBgColorSwatch" />
+<Button Width="24" Height="24" CornerRadius="6" Background="#E53935" BorderThickness="0" Padding="0" Tag="E53935" Click="OnBgColorSwatch" />
+</StackPanel>
+<TextBlock Text="Padding" FontSize="12" Foreground="{StaticResource SubtleTextBrush}" />
+<Slider x:Name="BgPadding" Minimum="0" Maximum="200" Value="64" Width="230" />
+<TextBlock Text="Corners" FontSize="12" Foreground="{StaticResource SubtleTextBrush}" />
+<Slider x:Name="BgCorners" Minimum="0" Maximum="48" Value="16" Width="230" />
+<CheckBox x:Name="BgShadow" Content="Shadow" IsChecked="True" />
+<ComboBox x:Name="BgRatio" Header="Ratio" SelectedIndex="0" Width="230">
+<ComboBoxItem Content="Auto" /><ComboBoxItem Content="1:1" /><ComboBoxItem Content="4:3" /><ComboBoxItem Content="3:2" /><ComboBoxItem Content="16:9" /><ComboBoxItem Content="9:16" /><ComboBoxItem Content="3:4" />
+</ComboBox>
+<ComboBox x:Name="BgAlign" Header="Alignment" SelectedIndex="4" Width="230">
+<ComboBoxItem Content="Top Left" /><ComboBoxItem Content="Top Center" /><ComboBoxItem Content="Top Right" /><ComboBoxItem Content="Center Left" /><ComboBoxItem Content="Center" /><ComboBoxItem Content="Center Right" /><ComboBoxItem Content="Bottom Left" /><ComboBoxItem Content="Bottom Center" /><ComboBoxItem Content="Bottom Right" />
+</ComboBox>
+<Button Content="Apply Background" Click="OnApplyBackground" HorizontalAlignment="Stretch" />
+</StackPanel>
+</Flyout>
 </DropDownButton.Flyout>
 </DropDownButton>
 <DropDownButton VerticalAlignment="Center" Height="34" CornerRadius="7" Background="Transparent" BorderThickness="0" Padding="10,0">

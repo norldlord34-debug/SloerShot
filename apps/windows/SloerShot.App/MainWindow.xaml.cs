@@ -57,6 +57,9 @@ private double _styleOpacity = 1.0;
 private string _arrowStyle = "Straight";
 private string _textStyle = "Plain";
 private bool _smartHighlighter;
+private string _bgType = "gradient";
+private string _bgPreset = "Indigo";
+private (byte r, byte g, byte b) _bgColor = (255, 255, 255);
 public MainWindow()
 {
 this.InitializeComponent();
@@ -568,6 +571,38 @@ StatusText.Text = "Share link copied: " + link;
 }
 catch (Exception ex) { StatusText.Text = "Share failed: " + ex.Message; }
 }
+private void OnBgPreset(object sender, RoutedEventArgs e) { var tg = (sender as FrameworkElement)?.Tag as string; if (tg != null) { _bgPreset = tg; _bgType = "gradient"; if (BgTypeCombo != null) BgTypeCombo.SelectedIndex = 0; StatusText.Text = "Gradient: " + tg; } }
+private void OnBgColorSwatch(object sender, RoutedEventArgs e) { var hex = (sender as FrameworkElement)?.Tag as string; if (hex != null && hex.Length >= 6) { try { _bgColor = (Convert.ToByte(hex.Substring(0, 2), 16), Convert.ToByte(hex.Substring(2, 2), 16), Convert.ToByte(hex.Substring(4, 2), 16)); _bgType = "color"; if (BgTypeCombo != null) BgTypeCombo.SelectedIndex = 1; } catch { } } }
+private void OnBgTypeChanged(object sender, SelectionChangedEventArgs e) { if ((sender as ComboBox)?.SelectedItem is ComboBoxItem it && it.Content is string sv) _bgType = sv.ToLowerInvariant(); }
+private async void OnApplyBackground(object sender, RoutedEventArgs e)
+{
+ if (_lastCapturePath == null || !File.Exists(_lastCapturePath)) { StatusText.Text = "Capture something first."; return; }
+ var json = BuildFramedJson();
+ var dir = System.IO.Path.GetDirectoryName(_lastCapturePath) ?? CapturesFolder();
+ var outPath = System.IO.Path.Combine(dir, $"bg-{DateTime.Now:yyyyMMdd-HHmmss}-{++_fxCounter}.png");
+ StatusText.Text = "Applying background...";
+ int rc = await System.Threading.Tasks.Task.Run(() => ShotCore.BeautifyFramed(_lastCapturePath, outPath, json));
+ if (rc != 0 || !File.Exists(outPath)) { StatusText.Text = "Background failed (" + rc + ")."; return; }
+ _suppressSelection = true; _captures.Insert(0, MakeItem(outPath)); CaptureCountText.Text = _captures.Count.ToString(); CapturesList.SelectedIndex = 0; _suppressSelection = false;
+ LoadImage(outPath); StatusText.Text = "Background applied.";
+}
+private string BuildFramedJson()
+{
+ var ci = System.Globalization.CultureInfo.InvariantCulture;
+ string bg;
+ if (_bgType == "color") bg = "{\"Solid\":{\"r\":" + _bgColor.r + ",\"g\":" + _bgColor.g + ",\"b\":" + _bgColor.b + ",\"a\":255}}";
+ else if (_bgType == "transparent") bg = "{\"Solid\":{\"r\":0,\"g\":0,\"b\":0,\"a\":0}}";
+ else bg = "{\"Preset\":\"" + _bgPreset + "\"}";
+ int padding = (int)(BgPadding?.Value ?? 64);
+ double corners = BgCorners?.Value ?? 16;
+ bool shadowOn = BgShadow?.IsChecked == true;
+ string shadow = shadowOn ? "{\"color\":{\"r\":0,\"g\":0,\"b\":0,\"a\":255},\"blur\":24.0,\"dx\":0.0,\"dy\":16.0,\"opacity\":0.35}" : "null";
+ string beautify = "{\"background\":" + bg + ",\"padding\":" + padding + ",\"corner_radius\":" + corners.ToString(ci) + ",\"shadow\":" + shadow + "}";
+ var ratio = RatioFromIndex(BgRatio?.SelectedIndex ?? 0);
+ int align = BgAlign?.SelectedIndex ?? 4;
+ return "{\"beautify\":" + beautify + ",\"aspect_w\":" + ratio.w + ",\"aspect_h\":" + ratio.h + ",\"align\":" + align + "}";
+}
+private static (int w, int h) RatioFromIndex(int i) => i switch { 1 => (1, 1), 2 => (4, 3), 3 => (3, 2), 4 => (16, 9), 5 => (9, 16), 6 => (3, 4), _ => (0, 0) };
 private void OnBackdrop(object sender, RoutedEventArgs e)
 {
 var key = (sender as FrameworkElement)?.Tag as string;

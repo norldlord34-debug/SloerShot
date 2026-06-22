@@ -51,7 +51,7 @@ this.InitializeComponent();
 _settings = AppSettings.Load();
 CoreVersionText.Text = $"core {ShotCore.Version()}";
 CapturesList.ItemsSource = _captures;
-_toolToggles.AddRange(new[] { ToolSelect, ToolRect, ToolEllipse, ToolArrow, ToolLine, ToolText, ToolCounter, ToolMarker, ToolRedact, ToolCrop, ToolSpotlight });
+_toolToggles.AddRange(new[] { ToolSelect, ToolRect, ToolEllipse, ToolArrow, ToolLine, ToolText, ToolCounter, ToolMarker, ToolRedact, ToolCrop, ToolSpotlight, ToolPick });
 ToolSelect.IsChecked = true;
 LoadCapturesFolder();
 UpdateEmptyState();
@@ -364,7 +364,7 @@ if (tag.StartsWith("fx:"))
 {
 _activeFxTool = tag.Substring(3);
 SelectionLayer.IsHitTestVisible = true;
-StatusText.Text = _activeFxTool == "crop" ? "Drag a region to crop." : "Drag a region to spotlight.";
+StatusText.Text = _activeFxTool == "crop" ? "Drag a region to crop." : (_activeFxTool == "pick" ? "Click a pixel to copy its color." : "Drag a region to spotlight.");
 }
 else
 {
@@ -380,6 +380,7 @@ private void OnDelete(object sender, RoutedEventArgs e) => EditorCanvas.DeleteSe
 private void OnSelectionPressed(object sender, PointerRoutedEventArgs e)
 {
 if (_activeFxTool == null) return;
+if (_activeFxTool == "pick") { PickColorAt(e.GetCurrentPoint(SelectionLayer).Position); return; }
 _selStart = e.GetCurrentPoint(SelectionLayer).Position;
 _selecting = true;
 SelectionLayer.CapturePointer(e.Pointer);
@@ -422,6 +423,163 @@ private void ClearMarquee()
 if (_marquee != null) { SelectionLayer.Children.Remove(_marquee); _marquee = null; }
 }
 private static SolidColorBrush Rgba(byte a, byte r, byte g, byte b) => new(new Windows.UI.Color { A = a, R = r, G = g, B = b });
+private static byte[]? LoadRgba(string path, out int w, out int h)
+{
+w = 0; h = 0;
+try
+{
+using var bmp = new System.Drawing.Bitmap(path);
+w = bmp.Width; h = bmp.Height;
+var data = bmp.LockBits(new System.Drawing.Rectangle(0, 0, w, h), System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+int stride = data.Stride;
+var buf = new byte[stride * h];
+System.Runtime.InteropServices.Marshal.Copy(data.Scan0, buf, 0, buf.Length);
+bmp.UnlockBits(data);
+var rgba = new byte[w * h * 4];
+for (int y = 0; y < h; y++)
+{
+int ro = y * stride; int wo = y * w * 4;
+for (int x = 0; x < w; x++)
+{
+int o = ro + x * 4; int d = wo + x * 4;
+rgba[d] = buf[o + 2]; rgba[d + 1] = buf[o + 1]; rgba[d + 2] = buf[o]; rgba[d + 3] = buf[o + 3];
+}
+}
+return rgba;
+}
+catch { return null; }
+}
+private void FlattenDocument()
+{
+try
+{
+if (_lastCapturePath == null || !File.Exists(_lastCapturePath)) { StatusText.Text = "Capture something first."; return; }
+var rgba = LoadRgba(_lastCapturePath, out int w, out int h);
+if (rgba == null) { StatusText.Text = "Could not read image."; return; }
+var corners = ShotCore.DetectDocument(rgba, (uint)w, (uint)h, 24);
+if (string.IsNullOrEmpty(corners)) { StatusText.Text = "No document detected."; return; }
+var dir = System.IO.Path.GetDirectoryName(_lastCapturePath) ?? CapturesFolder();
+var outPath = System.IO.Path.Combine(dir, $"flat-{DateTime.Now:yyyyMMdd-HHmmss}-{++_fxCounter}.png");
+if (ShotCore.PerspectiveUnwarp(_lastCapturePath, outPath, corners, (uint)w, (uint)h) != 0) { StatusText.Text = "Flatten failed."; return; }
+_suppressSelection = true; _captures.Insert(0, MakeItem(outPath)); CaptureCountText.Text = _captures.Count.ToString(); CapturesList.SelectedIndex = 0; _suppressSelection = false;
+LoadImage(outPath); StatusText.Text = "Document flattened.";
+}
+catch (Exception ex) { StatusText.Text = "Flatten failed: " + ex.Message; }
+}
+private void ScanCode()
+{
+try
+{
+if (_lastCapturePath == null || !File.Exists(_lastCapturePath)) { StatusText.Text = "Capture something first."; return; }
+var rgba = LoadRgba(_lastCapturePath, out int w, out int h);
+if (rgba == null) { StatusText.Text = "Could not read image."; return; }
+var text = ShotCore.QrDecode(rgba, (uint)w, (uint)h);
+if (string.IsNullOrEmpty(text)) text = ShotCore.Ean13Decode(rgba, (uint)w, (uint)h);
+if (string.IsNullOrEmpty(text)) { StatusText.Text = "No QR or barcode found."; return; }
+var dp = new DataPackage(); dp.SetText(text); Clipboard.SetContent(dp);
+StatusText.Text = "Decoded: " + text + " (copied).";
+}
+catch (Exception ex) { StatusText.Text = "Scan failed: " + ex.Message; }
+}
+private void OnBackdrop(object sender, RoutedEventArgs e)
+{
+var key = (sender as FrameworkElement)?.Tag as string;
+if (key == null) return;
+var json = BuildBeautifyJson(key);
+if (json == null) return;
+try
+{
+if (_lastCapturePath == null || !File.Exists(_lastCapturePath)) { StatusText.Text = "Capture something first."; return; }
+var dir = System.IO.Path.GetDirectoryName(_lastCapturePath) ?? CapturesFolder();
+var outPath = System.IO.Path.Combine(dir, $"bg-{DateTime.Now:yyyyMMdd-HHmmss}-{++_fxCounter}.png");
+if (ShotCore.Beautify(_lastCapturePath, outPath, json) != 0) { StatusText.Text = "Backdrop failed."; return; }
+_suppressSelection = true; _captures.Insert(0, MakeItem(outPath)); CaptureCountText.Text = _captures.Count.ToString(); CapturesList.SelectedIndex = 0; _suppressSelection = false;
+LoadImage(outPath); StatusText.Text = "Backdrop applied.";
+}
+catch (Exception ex) { StatusText.Text = "Backdrop failed: " + ex.Message; }
+}
+private static string? BuildBeautifyJson(string key)
+{
+string shadow = "{\"color\":{\"r\":0,\"g\":0,\"b\":0,\"a\":255},\"blur\":24.0,\"dx\":0.0,\"dy\":16.0,\"opacity\":0.35}";
+switch (key)
+{
+case "indigo": return "{\"background\":{\"Preset\":\"Indigo\"},\"padding\":64,\"corner_radius\":16.0,\"shadow\":" + shadow + "}";
+case "ocean": return "{\"background\":{\"Preset\":\"Ocean\"},\"padding\":64,\"corner_radius\":16.0,\"shadow\":" + shadow + "}";
+case "sunset": return "{\"background\":{\"Preset\":\"Sunset\"},\"padding\":64,\"corner_radius\":16.0,\"shadow\":" + shadow + "}";
+case "white": return "{\"background\":{\"Solid\":{\"r\":255,\"g\":255,\"b\":255,\"a\":255}},\"padding\":48,\"corner_radius\":12.0,\"shadow\":" + shadow + "}";
+case "dark": return "{\"background\":{\"Solid\":{\"r\":24,\"g\":24,\"b\":28,\"a\":255}},\"padding\":48,\"corner_radius\":12.0,\"shadow\":" + shadow + "}";
+case "tight": return "{\"background\":{\"Preset\":\"Graphite\"},\"padding\":24,\"corner_radius\":10.0,\"shadow\":null}";
+default: return null;
+}
+}
+private void OnExportPdf(object sender, RoutedEventArgs e)
+{
+try
+{
+if (_lastCapturePath == null) { StatusText.Text = "Capture something first."; return; }
+var outPdf = System.IO.Path.Combine(_settings.SaveFolder, $"export-{DateTime.Now:yyyyMMdd-HHmmss}.pdf");
+var json = System.Text.Json.JsonSerializer.Serialize(new[] { _lastCapturePath });
+if (ShotCore.ImagesToPdf(json, outPdf, 90) != 0) { StatusText.Text = "PDF export failed."; return; }
+StatusText.Text = "Exported " + System.IO.Path.GetFileName(outPdf);
+if (_settings.OpenFolderAfterSave) OnOpenFolder(sender, e);
+}
+catch (Exception ex) { StatusText.Text = "PDF export failed: " + ex.Message; }
+}
+private void OnExportAllPdf(object sender, RoutedEventArgs e)
+{
+try
+{
+if (_captures.Count == 0) { StatusText.Text = "No captures to export."; return; }
+var paths = _captures.Select(it => it.Path).Where(File.Exists).ToArray();
+if (paths.Length == 0) { StatusText.Text = "No captures to export."; return; }
+var outPdf = System.IO.Path.Combine(_settings.SaveFolder, $"album-{DateTime.Now:yyyyMMdd-HHmmss}.pdf");
+var json = System.Text.Json.JsonSerializer.Serialize(paths);
+if (ShotCore.ImagesToPdf(json, outPdf, 90) != 0) { StatusText.Text = "PDF export failed."; return; }
+StatusText.Text = "Exported " + paths.Length + " pages to " + System.IO.Path.GetFileName(outPdf);
+}
+catch (Exception ex) { StatusText.Text = "PDF export failed: " + ex.Message; }
+}
+private async void OnSaveAs(object sender, RoutedEventArgs e)
+{
+try
+{
+if (_lastCapturePath == null) { StatusText.Text = "Capture something first."; return; }
+var json = EditorCanvas.DocumentJson();
+var picker = new Windows.Storage.Pickers.FileSavePicker();
+picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.PicturesLibrary;
+picker.FileTypeChoices.Add("PNG image", new List<string> { ".png" });
+picker.FileTypeChoices.Add("JPEG image", new List<string> { ".jpg" });
+picker.SuggestedFileName = "SloerShot-" + DateTime.Now.ToString("yyyyMMdd-HHmmss");
+var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+var file = await picker.PickSaveFileAsync();
+if (file == null) { StatusText.Text = "Save cancelled."; return; }
+var tmpPng = System.IO.Path.ChangeExtension(_lastCapturePath, null) + "-saveas.png";
+string src = _lastCapturePath;
+if (json != null && ShotCore.Export(_lastCapturePath, json, tmpPng, null) == 0) src = tmpPng;
+if (file.FileType.ToLowerInvariant() == ".jpg") { using (var img = System.Drawing.Image.FromFile(src)) { SaveJpeg(img, file.Path, _settings.JpegQuality); } }
+else { System.IO.File.Copy(src, file.Path, true); }
+try { if (src == tmpPng) File.Delete(tmpPng); } catch { }
+StatusText.Text = "Saved to " + file.Path;
+}
+catch (Exception ex) { StatusText.Text = "Save As failed: " + ex.Message; }
+}
+private void PickColorAt(Point disp)
+{
+try
+{
+if (_lastCapturePath == null) return;
+var s = _renderScale <= 0 ? 1.0 : _renderScale;
+int ix = Math.Clamp((int)Math.Round(disp.X / s), 0, Math.Max(0, _imgW - 1));
+int iy = Math.Clamp((int)Math.Round(disp.Y / s), 0, Math.Max(0, _imgH - 1));
+using var bmp = new System.Drawing.Bitmap(_lastCapturePath);
+var col = bmp.GetPixel(ix, iy);
+string hex = string.Format("#{0:X2}{1:X2}{2:X2}", col.R, col.G, col.B);
+var dp = new DataPackage(); dp.SetText(hex); Clipboard.SetContent(dp);
+StatusText.Text = "Picked " + hex + " (copied).";
+}
+catch (Exception ex) { StatusText.Text = "Pick failed: " + ex.Message; }
+}
 private void OnPickColor(object sender, RoutedEventArgs e)
 {
 var hex = (sender as FrameworkElement)?.Tag as string;
@@ -438,6 +596,8 @@ private void OnEffectMenu(object sender, RoutedEventArgs e)
 var key = (sender as FrameworkElement)?.Tag as string;
 if (key == null) return;
 if (key == "whitebalance" || key == "autocolor" || key == "sharpen") { ApplyImageFunc(key); return; }
+if (key == "flatten") { FlattenDocument(); return; }
+if (key == "scan") { ScanCode(); return; }
 var json = BuildEffectOp(key);
 if (json != null) ApplyFx(json, key);
 }

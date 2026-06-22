@@ -81,6 +81,7 @@ int shotcore_perspective_unwarp(const char *in_path, const char *out_path, const
 int shotcore_unsharp(const char *in_path, const char *out_path, uint32_t radius, float amount);
 char *shotcore_detect_document(const uint8_t *rgba, uintptr_t len, uint32_t width, uint32_t height, uint8_t tol);
 int shotcore_white_balance(const char *in_path, const char *out_path);
+int shotcore_deskew(const char *in_path, const char *out_path);
 int shotcore_auto_color(const char *in_path, const char *out_path);
 int shotcore_images_to_pdf(const char *in_paths_json, const char *out_path, uint32_t quality);
 char *shotcore_videoedit_output(const char *edit_json, uint64_t source_ms, uint32_t w, uint32_t h, uint32_t channels);

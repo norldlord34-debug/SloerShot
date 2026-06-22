@@ -2112,3 +2112,12 @@ let mut s = ed.style();
 s.stroke_width = width as f32;
 ed.set_style(s);
 }
+
+
+#[no_mangle]
+pub extern "C" fn shotcore_deskew(in_path: *const c_char, out_path: *const c_char) -> c_int {
+let ip = match unsafe { cstr_to_string(in_path) } { Some(s) => s, None => return ERR_ARG };
+let op = match unsafe { cstr_to_string(out_path) } { Some(s) => s, None => return ERR_ARG };
+let img = match image::open(&ip) { Ok(i) => i.to_rgba8(), Err(_) => return ERR_IMAGE };
+match crate::deskew::deskew(&img).save(&op) { Ok(_) => OK, Err(_) => ERR_IMAGE }
+}

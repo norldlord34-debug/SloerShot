@@ -203,4 +203,6 @@ public sealed class AnnotationCanvas : Canvas
 
 public void SetStrokeColor(byte r, byte g, byte b, byte a) { if (_editor != IntPtr.Zero) { ShotCore.EditorSetStrokeColor(_editor, r, g, b, a); Refresh(); } }
 public void SetStrokeWidth(double width) { if (_editor != IntPtr.Zero) { ShotCore.EditorSetStrokeWidth(_editor, width); Refresh(); } }
+
+public void SetSelectedText(string text) { if (_editor != IntPtr.Zero) { ShotCore.EditorSetSelectedText(_editor, text); Refresh(); } }
 }

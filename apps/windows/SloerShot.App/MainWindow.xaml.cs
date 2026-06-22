@@ -51,6 +51,7 @@ this.InitializeComponent();
 _settings = AppSettings.Load();
 CoreVersionText.Text = $"core {ShotCore.Version()}";
 CapturesList.ItemsSource = _captures;
+CapturesGrid.ItemsSource = _captures;
 _toolToggles.AddRange(new[] { ToolSelect, ToolRect, ToolEllipse, ToolArrow, ToolLine, ToolText, ToolCounter, ToolMarker, ToolRedact, ToolCrop, ToolSpotlight, ToolPick });
 ToolSelect.IsChecked = true;
 LoadCapturesFolder();
@@ -146,9 +147,9 @@ try
 {
 if (mode == "scroll") { DoScrollingCapture(); return; }
 bool hide = _settings.HideWindowDuringCapture || mode == "area" || mode == "window";
-int delayMs = _settings.CaptureDelaySeconds * 1000;
 if (hide) { try { this.AppWindow.Hide(); } catch { } }
-if (hide || delayMs > 0) await Task.Delay(Math.Max(delayMs, hide ? 240 : 0));
+if (_settings.CaptureDelaySeconds > 0) { try { await new CountdownOverlay().RunAsync(_settings.CaptureDelaySeconds); } catch { } await Task.Delay(120); }
+else if (hide) { await Task.Delay(240); }
 (int X, int Y, int W, int H)? winRect = null;
 if (mode == "window") winRect = FrozenScreenCapture.ForegroundWindowRectRelative();
 Directory.CreateDirectory(_settings.SaveFolder);
@@ -301,7 +302,7 @@ StatusText.Text = "Deleted.";
 private void OnCaptureSelected(object sender, SelectionChangedEventArgs e)
 {
 if (_suppressSelection) return;
-if (CapturesList.SelectedItem is CaptureItem item && File.Exists(item.Path)) LoadImage(item.Path);
+if ((sender as Selector)?.SelectedItem is CaptureItem item && File.Exists(item.Path)) LoadImage(item.Path);
 }
 private double FitScale()
 {
@@ -481,6 +482,38 @@ StatusText.Text = "Decoded: " + text + " (copied).";
 }
 catch (Exception ex) { StatusText.Text = "Scan failed: " + ex.Message; }
 }
+private void OnToggleView(object sender, RoutedEventArgs e)
+{
+bool grid = ViewToggle.IsChecked == true;
+CapturesGrid.Visibility = grid ? Visibility.Visible : Visibility.Collapsed;
+CapturesList.Visibility = grid ? Visibility.Collapsed : Visibility.Visible;
+}
+private async void OnSetText(object sender, RoutedEventArgs e)
+{
+try
+{
+if (_lastCapturePath == null) { StatusText.Text = "Capture something first."; return; }
+var box = new TextBox { AcceptsReturn = true, PlaceholderText = "Type annotation text", MinWidth = 320, Height = 90, TextWrapping = TextWrapping.Wrap };
+var dialog = new ContentDialog { Title = "Set annotation text", Content = box, PrimaryButtonText = "Apply", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+if (await dialog.ShowAsync() == ContentDialogResult.Primary) { EditorCanvas.SetSelectedText(box.Text ?? ""); StatusText.Text = "Text applied (select a text annotation first)."; }
+}
+catch (Exception ex) { StatusText.Text = "Set text failed: " + ex.Message; }
+}
+private async void OnUploadShare(object sender, RoutedEventArgs e)
+{
+try
+{
+if (_lastCapturePath == null) { StatusText.Text = "Capture something first."; return; }
+if (string.IsNullOrWhiteSpace(_settings.ServerUrl)) { StatusText.Text = "Set a share server URL in Settings first."; return; }
+StatusText.Text = "Creating share link...";
+var client = new CloudClient(_settings.ServerUrl);
+var link = await client.CreateShareLinkAsync(null, 0, 0);
+if (string.IsNullOrEmpty(link)) { StatusText.Text = "Share failed (check server URL / backend)."; return; }
+var dp = new DataPackage(); dp.SetText(link); Clipboard.SetContent(dp);
+StatusText.Text = "Share link copied: " + link;
+}
+catch (Exception ex) { StatusText.Text = "Share failed: " + ex.Message; }
+}
 private void OnBackdrop(object sender, RoutedEventArgs e)
 {
 var key = (sender as FrameworkElement)?.Tag as string;
@@ -595,7 +628,7 @@ private void OnEffectMenu(object sender, RoutedEventArgs e)
 {
 var key = (sender as FrameworkElement)?.Tag as string;
 if (key == null) return;
-if (key == "whitebalance" || key == "autocolor" || key == "sharpen") { ApplyImageFunc(key); return; }
+if (key == "whitebalance" || key == "autocolor" || key == "sharpen" || key == "deskew") { ApplyImageFunc(key); return; }
 if (key == "flatten") { FlattenDocument(); return; }
 if (key == "scan") { ScanCode(); return; }
 var json = BuildEffectOp(key);
@@ -644,7 +677,7 @@ try
 if (_lastCapturePath == null || !File.Exists(_lastCapturePath)) { StatusText.Text = "Capture something first."; return; }
 var dir = System.IO.Path.GetDirectoryName(_lastCapturePath) ?? CapturesFolder();
 var outPath = System.IO.Path.Combine(dir, $"fx-{DateTime.Now:yyyyMMdd-HHmmss}-{++_fxCounter}.png");
-int rc = key == "whitebalance" ? ShotCore.WhiteBalance(_lastCapturePath, outPath) : key == "autocolor" ? ShotCore.AutoColor(_lastCapturePath, outPath) : ShotCore.Unsharp(_lastCapturePath, outPath, 2, 1.2f);
+int rc = key == "whitebalance" ? ShotCore.WhiteBalance(_lastCapturePath, outPath) : key == "autocolor" ? ShotCore.AutoColor(_lastCapturePath, outPath) : key == "deskew" ? ShotCore.Deskew(_lastCapturePath, outPath) : ShotCore.Unsharp(_lastCapturePath, outPath, 2, 1.2f);
 if (rc != 0) { StatusText.Text = $"Effect {key} failed (code {rc})."; return; }
 _suppressSelection = true;
 _captures.Insert(0, MakeItem(outPath));
@@ -757,6 +790,8 @@ var openToggle = new ToggleSwitch { IsOn = _settings.OpenFolderAfterSave };
 panel.Children.Add(new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "Open folder after saving", HeaderIcon = new FontIcon { Glyph = "\uE838" }, Content = openToggle });
 var hkToggle = new ToggleSwitch { IsOn = _settings.HotkeyEnabled };
 panel.Children.Add(new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "Global capture hotkey", Description = DescribeHotkey(), HeaderIcon = new FontIcon { Glyph = "\uE765" }, Content = hkToggle });
+var serverBox = new TextBox { Text = _settings.ServerUrl, PlaceholderText = "https://your-server", MinWidth = 240 };
+panel.Children.Add(new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "Share server URL", Description = "Backend base URL for cloud share links", HeaderIcon = new FontIcon { Glyph = "\uE753" }, Content = serverBox });
 var scroll = new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 520 };
 var dialog = new ContentDialog { Title = "Settings", PrimaryButtonText = "Save", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, Content = scroll, XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
 var res = await dialog.ShowAsync();
@@ -769,6 +804,7 @@ _settings.HideWindowDuringCapture = hideToggle.IsOn;
 _settings.AutoCopyToClipboard = copyToggle.IsOn;
 _settings.OpenFolderAfterSave = openToggle.IsOn;
 _settings.HotkeyEnabled = hkToggle.IsOn;
+_settings.ServerUrl = serverBox.Text ?? "";
 _settings.Fixup();
 _settings.Save();
 RegisterCaptureHotkey();

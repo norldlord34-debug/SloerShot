@@ -18,6 +18,7 @@ public bool HotkeyEnabled { get; set; } = true;
 public string DefaultMode { get; set; } = "area";
 public bool DarkTheme { get; set; } = true;
 public uint AccentArgb { get; set; } = 0xFF3D7EFF;
+public string ServerUrl { get; set; } = "";
 public static string DefaultPicturesFolder()
 {
 return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "SloerShot");

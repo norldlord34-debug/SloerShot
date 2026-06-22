@@ -65,6 +65,7 @@ struct SloerShotApp: App {
  "ss.recShowCursor": true,
  "ss.recFPS": 60,
  "ss.recSystemAudio": false,
+ "ss.recHighlightClicks": true,
  "ss.exportLocation": "Desktop"
  ])
  }

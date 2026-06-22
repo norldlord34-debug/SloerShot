@@ -48,6 +48,8 @@ final class EditorModel: ObservableObject {
  @Published var tool: UInt32 = Tool.arrow.rawValue
  @Published var canUndo = false
  @Published var canRedo = false
+ @Published var showBackgroundPanel = false
+ @Published var backgroundPreview: NSImage?
 
  init?(background: CGImage?, width: UInt32, height: UInt32) {
  guard let h = EditorHandle(width: width, height: height) else { return nil }
@@ -92,16 +94,38 @@ guard let img = loadCGImage(tout) else { return false }
 replaceImage(img)
 return true
 }
-func applyBeautify(_ json: String) -> Bool {
-guard let bg = background else { return false }
+func beautify(from src: CGImage, json: String) -> Bool {
 let dir = FileManager.default.temporaryDirectory
 let tin = dir.appendingPathComponent("ss-bg-in.png")
 let tout = dir.appendingPathComponent("ss-bg-out.png")
-guard writePNG(bg, to: tin) else { return false }
+guard writePNG(src, to: tin) else { return false }
 guard ShotCore.beautify(inPath: tin.path, outPath: tout.path, optionsJson: json) == 0 else { return false }
 guard let img = loadCGImage(tout) else { return false }
 replaceImage(img)
 return true
+}
+func applyBeautify(_ json: String) -> Bool {
+guard let bg = background else { return false }
+return beautify(from: bg, json: json)
+}
+/// Bake current annotations into a flattened CGImage to feed the background tool.
+func flattenedImage() -> CGImage? {
+guard let url = flattenedURL() else { return nil }
+return loadCGImage(url)
+}
+/// Non-destructive preview: beautify a source image to an NSImage without mutating the editor.
+func beautifyPreview(source: CGImage, json: String) -> NSImage? {
+let dir = FileManager.default.temporaryDirectory
+let tin = dir.appendingPathComponent("ss-bgprev-in.png")
+let tout = dir.appendingPathComponent("ss-bgprev-out.png")
+guard writePNG(source, to: tin) else { return nil }
+guard ShotCore.beautify(inPath: tin.path, outPath: tout.path, optionsJson: json) == 0 else { return nil }
+return NSImage(contentsOf: tout)
+}
+/// Commit the background tool: bake annotations, then wrap in the chosen background.
+@discardableResult func commitBackground(json: String) -> Bool {
+guard let src = flattenedImage() else { return false }
+return beautify(from: src, json: json)
 }
 func applyEffect(_ key: String) { if let j = EditorModel.effectJson(key) { _ = applyFx(j) } }
 func applyBackdrop(_ key: String) { _ = applyBeautify(EditorModel.beautifyJson(key)) }
@@ -155,23 +179,34 @@ struct EditorView: View {
  @State private var status = ""
 
  var body: some View {
- VStack(spacing: 0) {
- toolbar
- Divider()
- ScrollView([.horizontal, .vertical]) {
- AnnotationCanvas(
- background: model.background,
- specs: model.specs,
- imageSize: model.imageSize,
- onPointerDown: { model.pointerDown($0) },
- onPointerDrag: { model.pointerDrag($0) },
- onPointerUp: { model.pointerUp($0) }
- )
- .padding(16)
- }
- }
- .frame(minWidth: 640, minHeight: 480)
- }
+HStack(spacing: 0) {
+VStack(spacing: 0) {
+toolbar
+Divider()
+ZStack {
+ScrollView([.horizontal, .vertical]) {
+AnnotationCanvas(
+background: model.background,
+specs: model.specs,
+imageSize: model.imageSize,
+onPointerDown: { p in model.pointerDown(p) },
+onPointerDrag: { p in model.pointerDrag(p) },
+onPointerUp: { p in model.pointerUp(p) }
+)
+.padding(16)
+}
+if model.showBackgroundPanel, let prev = model.backgroundPreview {
+Image(nsImage: prev).resizable().scaledToFit().padding(16).frame(maxWidth: .infinity, maxHeight: .infinity).background(Color(nsColor: .windowBackgroundColor))
+}
+}
+}
+if model.showBackgroundPanel {
+Divider()
+BackgroundPanel(model: model).frame(width: 290)
+}
+}
+.frame(minWidth: 640, minHeight: 480)
+}
 
  private var toolbar: some View {
  HStack(spacing: 6) {
@@ -213,6 +248,10 @@ Button("Dark") { model.applyBackdrop("dark") }
 Button("Tight") { model.applyBackdrop("tight") }
 }
 .frame(width: 96)
+Button { model.showBackgroundPanel.toggle() } label: { Image(systemName: "photo.on.rectangle.angled") }
+.help("Background tool (gradients, padding, shadow)")
+.background(model.showBackgroundPanel ? Color.accentColor.opacity(0.25) : Color.clear)
+.cornerRadius(4)
 Button { status = model.copyToClipboard() ? "copied" : "copy failed" } label: { Image(systemName: "doc.on.doc") }
 .keyboardShortcut("c", modifiers: [.command])
 .help("Copy to clipboard")

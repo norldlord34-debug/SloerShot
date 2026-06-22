@@ -741,6 +741,9 @@ var picker = new Windows.Storage.Pickers.FileSavePicker();
 picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.PicturesLibrary;
 picker.FileTypeChoices.Add("PNG image", new List<string> { ".png" });
 picker.FileTypeChoices.Add("JPEG image", new List<string> { ".jpg" });
+picker.FileTypeChoices.Add("HEIC image", new List<string> { ".heic" });
+picker.FileTypeChoices.Add("TIFF image", new List<string> { ".tiff" });
+picker.FileTypeChoices.Add("BMP image", new List<string> { ".bmp" });
 picker.SuggestedFileName = "SloerShot-" + DateTime.Now.ToString("yyyyMMdd-HHmmss");
 var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
 WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
@@ -749,7 +752,11 @@ if (file == null) { StatusText.Text = "Save cancelled."; return; }
 var tmpPng = System.IO.Path.ChangeExtension(_lastCapturePath, null) + "-saveas.png";
 string src = _lastCapturePath;
 if (json != null && ShotCore.Export(_lastCapturePath, json, tmpPng, null) == 0) src = tmpPng;
-if (file.FileType.ToLowerInvariant() == ".jpg") { using (var img = System.Drawing.Image.FromFile(src)) { SaveJpeg(img, file.Path, _settings.JpegQuality); } }
+var ext = file.FileType.ToLowerInvariant();
+if (ext == ".jpg") { using (var img = System.Drawing.Image.FromFile(src)) { SaveJpeg(img, file.Path, _settings.JpegQuality); } }
+else if (ext == ".heic") { await EncodeWinRTAsync(src, file, Windows.Graphics.Imaging.BitmapEncoder.HeifEncoderId); }
+else if (ext == ".tiff") { await EncodeWinRTAsync(src, file, Windows.Graphics.Imaging.BitmapEncoder.TiffEncoderId); }
+else if (ext == ".bmp") { await EncodeWinRTAsync(src, file, Windows.Graphics.Imaging.BitmapEncoder.BmpEncoderId); }
 else { System.IO.File.Copy(src, file.Path, true); }
 try { if (src == tmpPng) File.Delete(tmpPng); } catch { }
 StatusText.Text = "Saved to " + file.Path;
@@ -887,6 +894,19 @@ StatusText.Text = $"Saved {System.IO.Path.GetFileName(finalPath)}";
 if (_settings.OpenFolderAfterSave) OnOpenFolder(sender, e);
 }
 catch (Exception ex) { StatusText.Text = "Save failed: " + ex.Message; }
+}
+private static async System.Threading.Tasks.Task EncodeWinRTAsync(string srcPath, StorageFile destFile, Guid encoderId)
+{
+ var srcFile = await StorageFile.GetFileFromPathAsync(srcPath);
+ using var inStream = await srcFile.OpenAsync(FileAccessMode.Read);
+ var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(inStream);
+ using var swb = await decoder.GetSoftwareBitmapAsync();
+ using var conv = Windows.Graphics.Imaging.SoftwareBitmap.Convert(swb, Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8, Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied);
+ using var outStream = await destFile.OpenAsync(FileAccessMode.ReadWrite);
+ outStream.Size = 0;
+ var encoder = await Windows.Graphics.Imaging.BitmapEncoder.CreateAsync(encoderId, outStream);
+ encoder.SetSoftwareBitmap(conv);
+ await encoder.FlushAsync();
 }
 private static void SaveJpeg(System.Drawing.Image img, string path, int quality)
 {

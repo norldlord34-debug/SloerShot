@@ -323,10 +323,31 @@ using var sw = await decoder.GetSoftwareBitmapAsync();
 using var conv = Windows.Graphics.Imaging.SoftwareBitmap.Convert(sw, Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8, Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied);
 var text = await OcrService.RecognizeTextAsync(conv);
 if (string.IsNullOrWhiteSpace(text)) { StatusText.Text = "No text found in this capture."; return; }
-var dp = new DataPackage(); dp.SetText(text); Clipboard.SetContent(dp);
-StatusText.Text = "Copied OCR text (" + text.Length + " chars).";
+var json = await OcrService.RecognizeJsonAsync(conv);
+await ShowOcrDialogAsync(text!, json);
 }
 catch (Exception ex) { StatusText.Text = "OCR failed: " + ex.Message; }
+}
+private async System.Threading.Tasks.Task ShowOcrDialogAsync(string text, string? ocrJson)
+{
+ var box = new TextBox { Text = text, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, Height = 300, Width = 500, FontFamily = new FontFamily("Consolas") };
+ var status = new TextBlock { Foreground = new SolidColorBrush(Microsoft.UI.Colors.Gray), FontSize = 12 };
+ var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+ void Copy(string s) { var dp = new DataPackage(); dp.SetText(s); Clipboard.SetContent(dp); }
+ void AddBtn(string label, Action act) { var b = new Button { Content = label }; b.Click += (_, _) => act(); actions.Children.Add(b); }
+ AddBtn("Copy", () => { Copy(box.Text); status.Text = "Copied."; });
+ AddBtn("Save .txt", () => { try { var sp = System.IO.Path.Combine(CapturesFolder(), "text-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".txt"); System.IO.File.WriteAllText(sp, box.Text); status.Text = "Saved " + System.IO.Path.GetFileName(sp); } catch (Exception ex) { status.Text = ex.Message; } });
+ AddBtn("Links", () => { var j = ShotCore.ExtractLinks(box.Text); if (!string.IsNullOrEmpty(j)) { Copy(j!); status.Text = "Links copied."; } else { status.Text = "No links found."; } });
+ if (!string.IsNullOrEmpty(ocrJson))
+ {
+ AddBtn("Table CSV", () => { var c = ShotCore.TableCsv(ocrJson!, 20); if (!string.IsNullOrEmpty(c)) { Copy(c!); status.Text = "CSV copied."; } });
+ AddBtn("Table MD", () => { var m = ShotCore.TableMarkdown(ocrJson!, 20); if (!string.IsNullOrEmpty(m)) { Copy(m!); status.Text = "Markdown copied."; } });
+ }
+ var panel = new StackPanel { Spacing = 10 };
+ panel.Children.Add(box); panel.Children.Add(actions); panel.Children.Add(status);
+ var dlg = new ContentDialog { Title = "Captured Text", Content = panel, CloseButtonText = "Close", XamlRoot = this.Content.XamlRoot };
+ StatusText.Text = "OCR ready (" + text.Length + " chars).";
+ await dlg.ShowAsync();
 }
 private void OnPin(object sender, RoutedEventArgs e)
 {

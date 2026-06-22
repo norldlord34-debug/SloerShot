@@ -263,4 +263,14 @@ public static extern int Deskew(string inPath, string outPath);
 
  [DllImport(Lib, EntryPoint = "shotcore_encode_gif_dir", CharSet = CharSet.Ansi)]
  public static extern int EncodeGifDir(string dirPath, uint fps, uint maxWidth, string outPath);
+
+ [DllImport(Lib, EntryPoint = "shotcore_extract_links", CharSet = CharSet.Ansi)]
+ private static extern IntPtr ExtractLinksRaw(string text);
+ public static string? ExtractLinks(string text) => TakeString(ExtractLinksRaw(text));
+ [DllImport(Lib, EntryPoint = "shotcore_table_csv", CharSet = CharSet.Ansi)]
+ private static extern IntPtr TableCsvRaw(string ocrJson, double colTolerance);
+ public static string? TableCsv(string ocrJson, double colTolerance) => TakeString(TableCsvRaw(ocrJson, colTolerance));
+ [DllImport(Lib, EntryPoint = "shotcore_table_markdown", CharSet = CharSet.Ansi)]
+ private static extern IntPtr TableMarkdownRaw(string ocrJson, double colTolerance);
+ public static string? TableMarkdown(string ocrJson, double colTolerance) => TakeString(TableMarkdownRaw(ocrJson, colTolerance));
 }

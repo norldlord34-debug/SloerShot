@@ -59,8 +59,11 @@ struct SloerShotApp: App {
  MenuContent(model: model)
  }
  Window("SloerShot", id: "editor") {
- EditorHost(model: model)
- }
+EditorHost(model: model)
+}
+Settings {
+SettingsView()
+}
  }
 }
 
@@ -119,6 +122,8 @@ Text("10 seconds").tag(10)
 
  Divider()
  Button("Open Editor") { openWindow(id: "editor") }
+SettingsLink { Text("Settings...") }
+.keyboardShortcut(",", modifiers: .command)
  Text("shotcore \(ShotCore.version())")
  Divider()
  Button("Quit SloerShot") { NSApplication.shared.terminate(nil) }

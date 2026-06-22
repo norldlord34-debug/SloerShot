@@ -29,6 +29,7 @@ struct SettingsView: View {
 @AppStorage("ss.recRetina1x") private var recRetina1x = false
 @AppStorage("ss.recDND") private var recDND = false
 @AppStorage("ss.recShowCursor") private var recShowCursor = true
+@AppStorage("ss.recSystemAudio") private var recSystemAudio = false
 @AppStorage("ss.recHighlightClicks") private var recHighlightClicks = true
 @AppStorage("ss.recShowKeystrokes") private var recShowKeystrokes = true
 @AppStorage("ss.recRememberArea") private var recRememberArea = false
@@ -140,6 +141,7 @@ Toggle("Display recording time in menu bar", isOn: $recMenuBarTime)
 Toggle("Scale Retina videos to 1x", isOn: $recRetina1x)
 Toggle("Enable Do Not Disturb while recording", isOn: $recDND)
 Toggle("Show cursor", isOn: $recShowCursor)
+Toggle("Capture system audio", isOn: $recSystemAudio)
 Toggle("Highlight clicks", isOn: $recHighlightClicks)
 Toggle("Show keystrokes", isOn: $recShowKeystrokes)
 Toggle("Remember last recording area", isOn: $recRememberArea)

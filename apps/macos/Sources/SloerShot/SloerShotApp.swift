@@ -62,6 +62,9 @@ struct SloerShotApp: App {
  "ss.scShowOverlay": true,
  "ss.scCopy": false,
  "ss.scSave": false,
+ "ss.recShowCursor": true,
+ "ss.recFPS": 60,
+ "ss.recSystemAudio": false,
  "ss.exportLocation": "Desktop"
  ])
  }

@@ -116,3 +116,10 @@ Remaining/next: Phase 6 deep (mic/camera/clicks/keystrokes), Phase 7 video edito
 - Phase 6 deep: recording reads cursor/fps from settings; opt-in system audio (AAC track); highlight clicks (fading-ring overlay); show keystrokes (opt-in on-screen badge). All overlays are captured by the recording; nothing logged/stored.
 - Phase 7: export a recording to animated GIF (AVAssetImageGenerator + ImageIO).
 Note: macOS AV features are CI-compile-verified only (no Mac for runtime testing); the click/keystroke overlays are ephemeral and never log or transmit input.
+
+
+### Continued (batch 3 - deep AV + editor)
+- Camera PiP overlay during recording (floating circular webcam window, sized via core record_camera_rect; opt-in).
+- Video trim editor (AVKit player + start/end + AVAssetExportSession export of the trimmed range).
+- Combine Images (pick several, stack vertically via core combine_stack_vertical, open in editor).
+- Scroll capture polish (largest-window pick, adaptive frame dedup via core dHash, progress, configurable frame count).

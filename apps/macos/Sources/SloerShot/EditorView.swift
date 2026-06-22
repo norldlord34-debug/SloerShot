@@ -60,6 +60,8 @@ final class EditorModel: ObservableObject {
 @Published var textStyle = "Plain"
 @Published var smartHighlighter = false
 @Published var pencilSmooth = true
+@Published var cropMode = false
+@Published var cropRect: CGRect = .null
 
  init?(background: CGImage?, width: UInt32, height: UInt32) {
  guard let h = EditorHandle(width: width, height: height) else { return nil }
@@ -101,6 +103,20 @@ if fillEnabled { let f = ssColorRGBA(fillColor); fill = "{\"r\":\(f.0),\"g\":\(f
 return "{\"stroke\":\(stroke),\"fill\":\(fill),\"stroke_width\":\(strokeWidth),\"opacity\":\(styleOpacity),\"arrow_style\":\"\(arrowStyle)\",\"filled\":\(filledShapes),\"text_style\":\"\(textStyle)\",\"highlighter_smart\":\(smartHighlighter),\"pencil_smooth\":\(pencilSmooth)}"
 }
 func applyStyle() { _ = handle.setStyleJson(styleJSON()); refresh() }
+/// Apply the interactive crop (in image-pixel coords) by flattening then cropping via core fx.
+func applyCrop() {
+guard cropMode else { return }
+let r = cropRect.integral
+guard !cropRect.isNull, r.width >= 4, r.height >= 4, let src = flattenedImage() else { cancelCrop(); return }
+let dir = FileManager.default.temporaryDirectory
+let tin = dir.appendingPathComponent("ss-crop-in.png")
+let tout = dir.appendingPathComponent("ss-crop-out.png")
+guard writePNG(src, to: tin) else { cancelCrop(); return }
+let json = "{\"op\":\"crop\",\"x\":\(Int(r.minX)),\"y\":\(Int(r.minY)),\"w\":\(Int(r.width)),\"h\":\(Int(r.height))}"
+if ShotCore.fxApply(inPath: tin.path, outPath: tout.path, opJson: json) == 0, let img = loadCGImage(tout) { replaceImage(img) }
+cancelCrop()
+}
+func cancelCrop() { cropMode = false; cropRect = .null }
 /// Apply a path-based core image op (sharpen, white balance, auto color, deskew) destructively.
 func applyPathOp(_ key: String) {
 guard let bg = background else { return }
@@ -250,10 +266,11 @@ AnnotationCanvas(
 background: model.background,
 specs: model.specs,
 imageSize: model.imageSize,
-onPointerDown: { p in model.pointerDown(p) },
-onPointerDrag: { p in model.pointerDrag(p) },
-onPointerUp: { p in model.pointerUp(p) }
+onPointerDown: { p in if !model.cropMode { model.pointerDown(p) } },
+onPointerDrag: { p in if !model.cropMode { model.pointerDrag(p) } },
+onPointerUp: { p in if !model.cropMode { model.pointerUp(p) } }
 )
+.overlay { if model.cropMode { CropOverlay(imageSize: model.imageSize, rect: $model.cropRect) } }
 .padding(16)
 }
 if model.showBackgroundPanel, let prev = model.backgroundPreview {
@@ -286,6 +303,15 @@ BackgroundPanel(model: model).frame(width: 290)
  .disabled(!model.canUndo)
  Button { model.redo() } label: { Image(systemName: "arrow.uturn.forward") }
  .disabled(!model.canRedo)
+Divider().frame(height: 20)
+Button { model.cropMode.toggle(); if !model.cropMode { model.cropRect = .null } } label: { Image(systemName: "crop") }
+.help("Crop")
+.background(model.cropMode ? Color.accentColor.opacity(0.25) : Color.clear)
+.cornerRadius(4)
+if model.cropMode {
+Button("Apply Crop") { model.applyCrop() }
+Button("Cancel") { model.cancelCrop() }
+}
  Spacer()
  Menu("Effects") {
 Button("Grayscale") { model.applyEffect("grayscale") }

@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using SloerShot.Interop;
 using Microsoft.UI;
@@ -200,4 +200,7 @@ public sealed class AnnotationCanvas : Canvas
         poly.Points.Add(right);
         Children.Add(poly);
     }
+
+public void SetStrokeColor(byte r, byte g, byte b, byte a) { if (_editor != IntPtr.Zero) { ShotCore.EditorSetStrokeColor(_editor, r, g, b, a); Refresh(); } }
+public void SetStrokeWidth(double width) { if (_editor != IntPtr.Zero) { ShotCore.EditorSetStrokeWidth(_editor, width); Refresh(); } }
 }

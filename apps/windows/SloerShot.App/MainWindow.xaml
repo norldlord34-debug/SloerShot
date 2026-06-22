@@ -23,7 +23,7 @@ Title="SloerShot">
 <KeyboardAccelerator Key="H" Invoked="OnAccelerator" />
 <KeyboardAccelerator Key="X" Invoked="OnAccelerator" />
 </Grid.KeyboardAccelerators>
-<Border Grid.Row="0" Background="{StaticResource PanelBgBrush}" BorderBrush="{StaticResource StrokeBrush}" BorderThickness="0,0,0,1" Padding="14,9">
+<Border x:Name="TitleBar" Grid.Row="0" Background="#B31F1F25" BorderBrush="{StaticResource StrokeBrush}" BorderThickness="0,0,0,1" Padding="14,9">
 <Grid ColumnDefinitions="Auto,*,Auto">
 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
 <Border Width="26" Height="26" CornerRadius="7" Background="{StaticResource AccentBrush}">
@@ -32,7 +32,7 @@ Title="SloerShot">
 <TextBlock Text="SloerShot" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center" />
 <TextBlock x:Name="CoreVersionText" FontSize="12" Foreground="{StaticResource SubtleTextBrush}" VerticalAlignment="Center" Margin="2,3,0,0" />
 </StackPanel>
-<StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+<StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,0,140,0">
 <Button Style="{StaticResource IconButtonStyle}" Click="OnOpenFolder" ToolTipService.ToolTip="Open captures folder">
 <FontIcon Glyph="&#xE838;" FontSize="15" />
 </Button>
@@ -51,6 +51,7 @@ Title="SloerShot">
 <MenuFlyoutItem Text="Capture Area" Tag="area" Click="OnCaptureOption" />
 <MenuFlyoutItem Text="Window" Tag="window" Click="OnCaptureOption" />
 <MenuFlyoutItem Text="Fullscreen" Tag="full" Click="OnCaptureOption" />
+<MenuFlyoutItem Text="Scrolling Capture" Tag="scroll" Click="OnCaptureOption" />
 </MenuFlyout>
 </DropDownButton.Flyout>
 </DropDownButton>
@@ -152,6 +153,33 @@ Title="SloerShot">
 <FontIcon Glyph="&#xE74D;" FontSize="15" />
 </Button>
 <Rectangle Width="1" Height="22" Fill="{StaticResource StrokeBrush}" Margin="5,0" />
+<Button Style="{StaticResource IconButtonStyle}" Width="48" Click="OnOcr" ToolTipService.ToolTip="Copy text (OCR)"><TextBlock Text="OCR" FontSize="12" /></Button>
+<DropDownButton VerticalAlignment="Center" Height="34" CornerRadius="7" Background="Transparent" BorderThickness="0" Padding="10,0">
+<TextBlock Text="Style" Foreground="{StaticResource TextBrush}" />
+<DropDownButton.Flyout>
+<Flyout>
+<StackPanel Spacing="10">
+<TextBlock Text="Color" FontSize="12" Foreground="{StaticResource SubtleTextBrush}" />
+<StackPanel Orientation="Horizontal" Spacing="6">
+<Button Width="24" Height="24" CornerRadius="12" Background="#E53935" BorderThickness="0" Padding="0" Tag="E53935" Click="OnPickColor" />
+<Button Width="24" Height="24" CornerRadius="12" Background="#FB8C00" BorderThickness="0" Padding="0" Tag="FB8C00" Click="OnPickColor" />
+<Button Width="24" Height="24" CornerRadius="12" Background="#FDD835" BorderThickness="0" Padding="0" Tag="FDD835" Click="OnPickColor" />
+<Button Width="24" Height="24" CornerRadius="12" Background="#43A047" BorderThickness="0" Padding="0" Tag="43A047" Click="OnPickColor" />
+<Button Width="24" Height="24" CornerRadius="12" Background="#1E88E5" BorderThickness="0" Padding="0" Tag="1E88E5" Click="OnPickColor" />
+<Button Width="24" Height="24" CornerRadius="12" Background="#8E24AA" BorderThickness="0" Padding="0" Tag="8E24AA" Click="OnPickColor" />
+<Button Width="24" Height="24" CornerRadius="12" Background="#FFFFFF" BorderThickness="0" Padding="0" Tag="FFFFFF" Click="OnPickColor" />
+<Button Width="24" Height="24" CornerRadius="12" Background="#111111" BorderThickness="0" Padding="0" Tag="111111" Click="OnPickColor" />
+</StackPanel>
+<TextBlock Text="Thickness" FontSize="12" Foreground="{StaticResource SubtleTextBrush}" />
+<StackPanel Orientation="Horizontal" Spacing="6">
+<Button Content="Thin" Tag="2" Click="OnPickStroke" />
+<Button Content="Medium" Tag="4" Click="OnPickStroke" />
+<Button Content="Thick" Tag="8" Click="OnPickStroke" />
+</StackPanel>
+</StackPanel>
+</Flyout>
+</DropDownButton.Flyout>
+</DropDownButton>
 <DropDownButton VerticalAlignment="Center" Height="34" CornerRadius="7" Background="Transparent" BorderThickness="0" Padding="10,0">
 <TextBlock Text="Effects" Foreground="{StaticResource TextBrush}" />
 <DropDownButton.Flyout>
@@ -173,6 +201,9 @@ Title="SloerShot">
 </DropDownButton.Flyout>
 </DropDownButton>
 <Rectangle Width="1" Height="22" Fill="{StaticResource StrokeBrush}" Margin="5,0" />
+<Button Style="{StaticResource IconButtonStyle}" Click="OnPin" ToolTipService.ToolTip="Pin to screen (floating)">
+<FontIcon Glyph="&#xE718;" FontSize="15" />
+</Button>
 <Button Style="{StaticResource IconButtonStyle}" Click="OnCopy" ToolTipService.ToolTip="Copy to clipboard (Ctrl+C)">
 <FontIcon Glyph="&#xE8C8;" FontSize="15" />
 </Button>
@@ -203,6 +234,7 @@ Title="SloerShot">
 <Button Style="{StaticResource IconButtonStyle}" Click="OnCopy" ToolTipService.ToolTip="Copy"><FontIcon Glyph="&#xE8C8;" FontSize="14" /></Button>
 <Button Style="{StaticResource IconButtonStyle}" Click="OnSave" ToolTipService.ToolTip="Save"><FontIcon Glyph="&#xE74E;" FontSize="14" /></Button>
 <Button Style="{StaticResource IconButtonStyle}" Click="OnOpenFolder" ToolTipService.ToolTip="Folder"><FontIcon Glyph="&#xE838;" FontSize="14" /></Button>
+<Button Style="{StaticResource IconButtonStyle}" Click="OnPin" ToolTipService.ToolTip="Pin to screen"><FontIcon Glyph="&#xE718;" FontSize="14" /></Button>
 <Button Style="{StaticResource IconButtonStyle}" Click="OnToastDismiss" ToolTipService.ToolTip="Dismiss"><FontIcon Glyph="&#xE711;" FontSize="14" /></Button>
 </StackPanel>
 </Border>

@@ -245,4 +245,9 @@ public static class ShotCore
  public static extern int AutoColor(string inPath, string outPath);
  [DllImport(Lib, EntryPoint = "shotcore_images_to_pdf", CharSet = CharSet.Ansi)]
  public static extern int ImagesToPdf(string inPathsJson, string outPath, uint quality);
+
+[DllImport(Lib, EntryPoint = "shotcore_editor_set_stroke_color")]
+public static extern void EditorSetStrokeColor(IntPtr ed, byte r, byte g, byte b, byte a);
+[DllImport(Lib, EntryPoint = "shotcore_editor_set_stroke_width")]
+public static extern void EditorSetStrokeWidth(IntPtr ed, double width);
 }

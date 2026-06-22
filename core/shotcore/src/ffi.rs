@@ -2090,3 +2090,25 @@ mod doc_wb_pdf_ffi_tests {
  assert!(pdfout.exists());
  }
 }
+
+
+#[no_mangle]
+pub extern "C" fn shotcore_editor_set_stroke_color(ptr: *mut crate::editor::Editor, r: u8, g: u8, b: u8, a: u8) {
+if ptr.is_null() {
+return;
+}
+let ed = unsafe { &mut *ptr };
+let mut s = ed.style();
+s.stroke = crate::model::Color::rgba(r, g, b, a);
+ed.set_style(s);
+}
+#[no_mangle]
+pub extern "C" fn shotcore_editor_set_stroke_width(ptr: *mut crate::editor::Editor, width: f64) {
+if ptr.is_null() {
+return;
+}
+let ed = unsafe { &mut *ptr };
+let mut s = ed.style();
+s.stroke_width = width as f32;
+ed.set_style(s);
+}

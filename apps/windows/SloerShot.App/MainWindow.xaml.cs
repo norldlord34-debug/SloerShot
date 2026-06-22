@@ -32,6 +32,7 @@ public sealed partial class MainWindow : Window
 private readonly AppSettings _settings;
 private HotkeyService? _hotkey;
 private DispatcherTimer? _toastTimer;
+private readonly List<PinWindow> _pins = new();
 private string? _lastCapturePath;
 private int _fxCounter;
 private double _renderScale = 1.0;
@@ -55,6 +56,16 @@ ToolSelect.IsChecked = true;
 LoadCapturesFolder();
 UpdateEmptyState();
 try { this.AppWindow.Resize(new Windows.Graphics.SizeInt32(1180, 760)); } catch { }
+try
+{
+if (Microsoft.UI.Composition.SystemBackdrops.MicaController.IsSupported())
+{
+this.SystemBackdrop = new MicaBackdrop();
+Root.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+}
+}
+catch { }
+try { this.ExtendsContentIntoTitleBar = true; this.SetTitleBar(TitleBar); } catch { }
 InitHotkey();
 this.Closed += OnWindowClosed;
 }
@@ -133,6 +144,7 @@ private async void DoCapture(string mode)
 {
 try
 {
+if (mode == "scroll") { DoScrollingCapture(); return; }
 bool hide = _settings.HideWindowDuringCapture || mode == "area" || mode == "window";
 int delayMs = _settings.CaptureDelaySeconds * 1000;
 if (hide) { try { this.AppWindow.Hide(); } catch { } }
@@ -170,6 +182,44 @@ FinishCapture(result.Path, result.Width, result.Height, $"Captured {result.Width
 }
 catch (Exception ex) { try { this.AppWindow.Show(); } catch { } StatusText.Text = "Capture failed: " + ex.Message; }
 }
+private async void DoScrollingCapture()
+{
+try
+{
+var info = new ContentDialog { Title = "Scrolling capture", Content = "I will take 6 shots over about 8 seconds. Put the target window in front and scroll down steadily after you click Start.", PrimaryButtonText = "Start", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+if (await info.ShowAsync() != ContentDialogResult.Primary) { StatusText.Text = "Scrolling capture cancelled."; return; }
+this.AppWindow.Hide();
+await Task.Delay(450);
+var win = FrozenScreenCapture.ForegroundWindowRectRelative();
+Directory.CreateDirectory(_settings.SaveFolder);
+var stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+var frames = new List<string>();
+int count = 6;
+for (int i = 0; i < count; i++)
+{
+var full = System.IO.Path.Combine(_settings.SaveFolder, $"scrollf-{stamp}-{i}.png");
+var res = FrozenScreenCapture.CaptureVirtualScreen(full);
+string framePath = full;
+if (win != null)
+{
+var r = win.Value;
+var cropPath = System.IO.Path.Combine(_settings.SaveFolder, $"scrollc-{stamp}-{i}.png");
+var cj = $"{{\"op\":\"crop\",\"x\":{r.X},\"y\":{r.Y},\"w\":{r.W},\"h\":{r.H}}}";
+if (ShotCore.FxApply(full, cropPath, cj) == 0) { try { File.Delete(full); } catch { } framePath = cropPath; }
+}
+frames.Add(framePath);
+if (i < count - 1) await Task.Delay(1300);
+}
+this.AppWindow.Show(); this.Activate();
+var outPath = System.IO.Path.Combine(_settings.SaveFolder, $"scrolling-{stamp}.png");
+bool ok = ScrollingStitch.StitchFiles(frames, outPath);
+foreach (var f in frames) { try { File.Delete(f); } catch { } }
+if (!ok) { StatusText.Text = "Scrolling stitch failed."; return; }
+int sw = 0, sh = 0; try { using var im = System.Drawing.Image.FromFile(outPath); sw = im.Width; sh = im.Height; } catch { }
+FinishCapture(outPath, sw, sh, "Scrolling capture stitched");
+}
+catch (Exception ex) { try { this.AppWindow.Show(); } catch { } StatusText.Text = "Scrolling capture failed: " + ex.Message; }
+}
 private void FinishCapture(string path, int w, int h, string status)
 {
 _suppressSelection = true;
@@ -202,6 +252,30 @@ t.Tick += (s, e) => { CaptureToast.Visibility = Visibility.Collapsed; t.Stop(); 
 return t;
 }
 private void OnToastDismiss(object sender, RoutedEventArgs e) { CaptureToast.Visibility = Visibility.Collapsed; _toastTimer?.Stop(); }
+private async void OnOcr(object sender, RoutedEventArgs e)
+{
+try
+{
+if (_lastCapturePath == null) { StatusText.Text = "Capture something first."; return; }
+if (!OcrService.IsAvailable) { StatusText.Text = "OCR engine not available on this system."; return; }
+var file = await StorageFile.GetFileFromPathAsync(_lastCapturePath);
+using var stream = await file.OpenAsync(FileAccessMode.Read);
+var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(stream);
+using var sw = await decoder.GetSoftwareBitmapAsync();
+using var conv = Windows.Graphics.Imaging.SoftwareBitmap.Convert(sw, Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8, Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied);
+var text = await OcrService.RecognizeTextAsync(conv);
+if (string.IsNullOrWhiteSpace(text)) { StatusText.Text = "No text found in this capture."; return; }
+var dp = new DataPackage(); dp.SetText(text); Clipboard.SetContent(dp);
+StatusText.Text = "Copied OCR text (" + text.Length + " chars).";
+}
+catch (Exception ex) { StatusText.Text = "OCR failed: " + ex.Message; }
+}
+private void OnPin(object sender, RoutedEventArgs e)
+{
+if (_lastCapturePath == null) { StatusText.Text = "Nothing to pin."; return; }
+try { var pin = new PinWindow(_lastCapturePath, 140, 140); _pins.Add(pin); pin.Closed += (s, a) => _pins.Remove(pin); pin.Activate(); StatusText.Text = "Pinned to screen."; }
+catch (Exception ex) { StatusText.Text = "Pin failed: " + ex.Message; }
+}
 private void OnOpenFolder(object sender, RoutedEventArgs e)
 {
 try { Directory.CreateDirectory(_settings.SaveFolder); System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = _settings.SaveFolder, UseShellExecute = true }); }
@@ -348,6 +422,17 @@ private void ClearMarquee()
 if (_marquee != null) { SelectionLayer.Children.Remove(_marquee); _marquee = null; }
 }
 private static SolidColorBrush Rgba(byte a, byte r, byte g, byte b) => new(new Windows.UI.Color { A = a, R = r, G = g, B = b });
+private void OnPickColor(object sender, RoutedEventArgs e)
+{
+var hex = (sender as FrameworkElement)?.Tag as string;
+if (hex == null || hex.Length < 6) return;
+try { byte r = Convert.ToByte(hex.Substring(0, 2), 16); byte g = Convert.ToByte(hex.Substring(2, 2), 16); byte b = Convert.ToByte(hex.Substring(4, 2), 16); EditorCanvas.SetStrokeColor(r, g, b, 255); StatusText.Text = "Annotation color set."; } catch { }
+}
+private void OnPickStroke(object sender, RoutedEventArgs e)
+{
+var t = (sender as FrameworkElement)?.Tag as string;
+if (t != null && double.TryParse(t, out var wv)) { EditorCanvas.SetStrokeWidth(wv); StatusText.Text = "Annotation thickness set."; }
+}
 private void OnEffectMenu(object sender, RoutedEventArgs e)
 {
 var key = (sender as FrameworkElement)?.Tag as string;
@@ -489,38 +574,35 @@ if (tool != null && _lastCapturePath != null) { tool.IsChecked = true; SyncToggl
 }
 private async void OnOpenSettings(object sender, RoutedEventArgs e)
 {
-var panel = new StackPanel { Spacing = 12, MinWidth = 420 };
-var folderBox = new TextBox { Header = "Save folder", Text = _settings.SaveFolder, IsReadOnly = true };
-var browse = new Button { Content = "Browse", VerticalAlignment = VerticalAlignment.Bottom };
-browse.Click += async (s, e2) => { var f = await PickFolderAsync(); if (f != null) folderBox.Text = f; };
-var folderRow = new Grid { ColumnSpacing = 8 };
-folderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-folderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-Grid.SetColumn(folderBox, 0); Grid.SetColumn(browse, 1);
-folderRow.Children.Add(folderBox); folderRow.Children.Add(browse);
-panel.Children.Add(folderRow);
-var delayCombo = new ComboBox { Header = "Capture delay", HorizontalAlignment = HorizontalAlignment.Stretch };
+var panel = new StackPanel { Spacing = 4, MinWidth = 460 };
+string chosenFolder = _settings.SaveFolder;
+var folderCard = new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "Save folder", Description = _settings.SaveFolder, HeaderIcon = new FontIcon { Glyph = "\uE838" } };
+var browse = new Button { Content = "Browse" };
+browse.Click += async (s, e2) => { var f = await PickFolderAsync(); if (f != null) { chosenFolder = f; folderCard.Description = f; } };
+folderCard.Content = browse;
+panel.Children.Add(folderCard);
+var delayCombo = new ComboBox { MinWidth = 140 };
 delayCombo.Items.Add("None"); delayCombo.Items.Add("3 seconds"); delayCombo.Items.Add("5 seconds");
 delayCombo.SelectedIndex = _settings.CaptureDelaySeconds >= 5 ? 2 : (_settings.CaptureDelaySeconds >= 3 ? 1 : 0);
-panel.Children.Add(delayCombo);
-var fmtCombo = new ComboBox { Header = "Save format", HorizontalAlignment = HorizontalAlignment.Stretch };
+panel.Children.Add(new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "Capture delay", Description = "Wait before grabbing the screen", HeaderIcon = new FontIcon { Glyph = "\uE916" }, Content = delayCombo });
+var fmtCombo = new ComboBox { MinWidth = 140 };
 fmtCombo.Items.Add("PNG"); fmtCombo.Items.Add("JPG");
 fmtCombo.SelectedIndex = _settings.Format == "jpg" ? 1 : 0;
-panel.Children.Add(fmtCombo);
-var hideToggle = new ToggleSwitch { Header = "Hide SloerShot window during capture", IsOn = _settings.HideWindowDuringCapture };
-panel.Children.Add(hideToggle);
-var copyToggle = new ToggleSwitch { Header = "Copy to clipboard after capture", IsOn = _settings.AutoCopyToClipboard };
-panel.Children.Add(copyToggle);
-var openToggle = new ToggleSwitch { Header = "Open folder after saving", IsOn = _settings.OpenFolderAfterSave };
-panel.Children.Add(openToggle);
-var hkToggle = new ToggleSwitch { Header = "Global capture hotkey (" + DescribeHotkey() + ")", IsOn = _settings.HotkeyEnabled };
-panel.Children.Add(hkToggle);
-var scroll = new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 460 };
+panel.Children.Add(new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "Save format", HeaderIcon = new FontIcon { Glyph = "\uEB9F" }, Content = fmtCombo });
+var hideToggle = new ToggleSwitch { IsOn = _settings.HideWindowDuringCapture };
+panel.Children.Add(new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "Hide window during capture", Description = "Avoid capturing SloerShot itself", HeaderIcon = new FontIcon { Glyph = "\uE7B3" }, Content = hideToggle });
+var copyToggle = new ToggleSwitch { IsOn = _settings.AutoCopyToClipboard };
+panel.Children.Add(new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "Copy to clipboard after capture", HeaderIcon = new FontIcon { Glyph = "\uE8C8" }, Content = copyToggle });
+var openToggle = new ToggleSwitch { IsOn = _settings.OpenFolderAfterSave };
+panel.Children.Add(new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "Open folder after saving", HeaderIcon = new FontIcon { Glyph = "\uE838" }, Content = openToggle });
+var hkToggle = new ToggleSwitch { IsOn = _settings.HotkeyEnabled };
+panel.Children.Add(new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "Global capture hotkey", Description = DescribeHotkey(), HeaderIcon = new FontIcon { Glyph = "\uE765" }, Content = hkToggle });
+var scroll = new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 520 };
 var dialog = new ContentDialog { Title = "Settings", PrimaryButtonText = "Save", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, Content = scroll, XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
 var res = await dialog.ShowAsync();
 if (res == ContentDialogResult.Primary)
 {
-_settings.SaveFolder = string.IsNullOrWhiteSpace(folderBox.Text) ? _settings.SaveFolder : folderBox.Text;
+_settings.SaveFolder = string.IsNullOrWhiteSpace(chosenFolder) ? _settings.SaveFolder : chosenFolder;
 _settings.CaptureDelaySeconds = delayCombo.SelectedIndex == 2 ? 5 : (delayCombo.SelectedIndex == 1 ? 3 : 0);
 _settings.Format = fmtCombo.SelectedIndex == 1 ? "jpg" : "png";
 _settings.HideWindowDuringCapture = hideToggle.IsOn;

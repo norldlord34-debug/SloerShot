@@ -38,4 +38,12 @@ public static class OcrService
  }
  return JsonSerializer.Serialize(new { lines });
  }
+
+ public static async Task<string?> RecognizeTextAsync(SoftwareBitmap bitmap)
+ {
+ var engine = OcrEngine.TryCreateFromUserProfileLanguages();
+ if (engine == null) return null;
+ var result = await engine.RecognizeAsync(bitmap);
+ return result.Text;
+ }
 }

@@ -314,6 +314,8 @@ extension ShotCore {
  @discardableResult
  static func whiteBalance(inPath: String, outPath: String) -> Int32 { shotcore_white_balance(inPath, outPath) }
  @discardableResult
+ static func deskew(inPath: String, outPath: String) -> Int32 { shotcore_deskew(inPath, outPath) }
+ @discardableResult
  static func autoColor(inPath: String, outPath: String) -> Int32 { shotcore_auto_color(inPath, outPath) }
  @discardableResult
  static func imagesToPdf(inPathsJson: String, outPath: String, quality: UInt32) -> Int32 { shotcore_images_to_pdf(inPathsJson, outPath, quality) }

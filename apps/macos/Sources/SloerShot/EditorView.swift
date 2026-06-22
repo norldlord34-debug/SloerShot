@@ -101,6 +101,24 @@ if fillEnabled { let f = ssColorRGBA(fillColor); fill = "{\"r\":\(f.0),\"g\":\(f
 return "{\"stroke\":\(stroke),\"fill\":\(fill),\"stroke_width\":\(strokeWidth),\"opacity\":\(styleOpacity),\"arrow_style\":\"\(arrowStyle)\",\"filled\":\(filledShapes),\"text_style\":\"\(textStyle)\",\"highlighter_smart\":\(smartHighlighter),\"pencil_smooth\":\(pencilSmooth)}"
 }
 func applyStyle() { _ = handle.setStyleJson(styleJSON()); refresh() }
+/// Apply a path-based core image op (sharpen, white balance, auto color, deskew) destructively.
+func applyPathOp(_ key: String) {
+guard let bg = background else { return }
+let dir = FileManager.default.temporaryDirectory
+let tin = dir.appendingPathComponent("ss-op-in.png")
+let tout = dir.appendingPathComponent("ss-op-out.png")
+guard writePNG(bg, to: tin) else { return }
+let rc: Int32
+switch key {
+case "sharpen": rc = ShotCore.unsharp(inPath: tin.path, outPath: tout.path, radius: 2, amount: 1.2)
+case "whitebalance": rc = ShotCore.whiteBalance(inPath: tin.path, outPath: tout.path)
+case "autocolor": rc = ShotCore.autoColor(inPath: tin.path, outPath: tout.path)
+case "deskew": rc = ShotCore.deskew(inPath: tin.path, outPath: tout.path)
+default: rc = -1
+}
+guard rc == 0, let img = loadCGImage(tout) else { return }
+replaceImage(img)
+}
 func applyFx(_ opJson: String) -> Bool {
 guard let bg = background else { return false }
 let dir = FileManager.default.temporaryDirectory
@@ -175,6 +193,9 @@ case "contrast": return "{\"op\":\"contrast\",\"factor\":1.3}"
 case "rotate": return "{\"op\":\"rotate\",\"deg\":90}"
 case "flip": return "{\"op\":\"flip\",\"axis\":\"h\"}"
 case "border": return "{\"op\":\"border\",\"thickness\":16,\"color\":{\"r\":255,\"g\":255,\"b\":255,\"a\":255}}"
+case "rotateLeft": return "{\"op\":\"rotate\",\"deg\":270}"
+case "rotate180": return "{\"op\":\"rotate\",\"deg\":180}"
+case "flipV": return "{\"op\":\"flip\",\"axis\":\"v\"}"
 default: return nil
 }
 }
@@ -256,6 +277,15 @@ Button("Contrast") { model.applyEffect("contrast") }
 Button("Rotate 90") { model.applyEffect("rotate") }
 Button("Flip") { model.applyEffect("flip") }
 Button("Border") { model.applyEffect("border") }
+Divider()
+Button("Rotate Left") { model.applyEffect("rotateLeft") }
+Button("Rotate 180") { model.applyEffect("rotate180") }
+Button("Flip Vertical") { model.applyEffect("flipV") }
+Divider()
+Button("Sharpen") { model.applyPathOp("sharpen") }
+Button("White Balance") { model.applyPathOp("whitebalance") }
+Button("Auto Color") { model.applyPathOp("autocolor") }
+Button("Auto-straighten") { model.applyPathOp("deskew") }
 }
 .frame(width: 86)
 Menu("Backdrop") {
@@ -282,7 +312,15 @@ Button { if let txt = promptText() { model.setText(txt); status = "text set" } }
 .help("Set text of selected annotation")
 Button { PinStore.pin(model.flattenedURL()) } label: { Image(systemName: "pin") }
 .help("Pin to screen")
-Button("Export PNG") { export() }
+Menu("Save As") {
+Button("PNG") { saveAs("png", .png) }
+Button("JPEG") { saveAs("jpg", .jpeg) }
+Button("WebP") { saveAs("webp", .webP) }
+Button("HEIC") { saveAs("heic", .heic) }
+Divider()
+Button("PNG (core flatten)") { export() }
+}
+.frame(width: 92)
  Text(status).foregroundStyle(.secondary).lineLimit(1)
  }
  .padding(8)
@@ -290,7 +328,17 @@ Button("Export PNG") { export() }
 
  /// Flatten through the core: write the captured image to a temp PNG, then call
  /// shotcore_export_png with the live document JSON to a user-chosen destination.
- private func export() {
+ private func saveAs(_ ext: String, _ type: UTType) {
+guard let img = model.flattenedImage() else { status = "nothing to save"; return }
+let panel = NSSavePanel()
+panel.allowedContentTypes = [type]
+panel.nameFieldStringValue = "SloerShot." + ext
+guard panel.runModal() == .OK, let url = panel.url else { return }
+guard let dest = CGImageDestinationCreateWithURL(url as CFURL, type.identifier as CFString, 1, nil) else { status = "save failed"; return }
+CGImageDestinationAddImage(dest, img, nil)
+status = CGImageDestinationFinalize(dest) ? ("saved " + url.lastPathComponent) : "save failed"
+}
+private func export() {
  guard let bg = model.background, let docJSON = model.documentJSON() else {
  status = "nothing to export"
  return

@@ -18,4 +18,18 @@ struct CloudClient {
  let json = String(data: data, encoding: .utf8) else { return nil }
  return ShotCore.shareLink(baseUrl: base, responseJson: json)
  }
+ /// Upload raw image bytes to /v1/upload and return the hosted absolute URL.
+ func uploadImage(fileURL: URL) async -> String? {
+ let base = baseURL.hasSuffix("/") ? String(baseURL.dropLast()) : baseURL
+ guard let data = try? Data(contentsOf: fileURL), let url = URL(string: base + "/v1/upload") else { return nil }
+ var req = URLRequest(url: url)
+ req.httpMethod = "POST"
+ req.setValue("image/png", forHTTPHeaderField: "Content-Type")
+ req.httpBody = data
+ guard let (respData, resp) = try? await URLSession.shared.data(for: req),
+ let http = resp as? HTTPURLResponse, http.statusCode == 200,
+ let obj = try? JSONSerialization.jsonObject(with: respData) as? [String: Any],
+ let link = obj["url"] as? String else { return nil }
+ return link
+ }
 }

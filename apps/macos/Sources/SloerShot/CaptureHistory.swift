@@ -106,6 +106,7 @@ HStack(spacing: 12) {
 Button { open(item) } label: { Image(systemName: "square.and.pencil") }.help("Open in editor")
 Button { copyItem(item) } label: { Image(systemName: "doc.on.doc") }.help("Copy")
 Button { PinStore.pin(item.url) } label: { Image(systemName: "pin") }.help("Pin to screen")
+Button { cloud(item) } label: { Image(systemName: "icloud.and.arrow.up") }.help("Upload to Cloud")
 Button { NSWorkspace.shared.activateFileViewerSelecting([item.url]) } label: { Image(systemName: "folder") }.help("Reveal in Finder")
 Spacer()
 Button { history.delete(item) } label: { Image(systemName: "trash") }.help("Delete")
@@ -116,6 +117,17 @@ private func open(_ item: HistoryItem) {
 guard let img = loadCGImage(item.url) else { return }
 model.openEditor(with: img)
 openWindow(id: "editor")
+}
+private func cloud(_ item: HistoryItem) {
+let server = UserDefaults.standard.string(forKey: "ss.serverUrl") ?? ""
+guard !server.isEmpty else { Toast.show("Configure a Cloud server in Settings first"); return }
+Toast.show("Uploading...")
+Task { @MainActor in
+if let link = await CloudClient(baseURL: server).uploadImage(fileURL: item.url) {
+let pb = NSPasteboard.general; pb.clearContents(); pb.setString(link, forType: .string)
+Toast.show("Link copied: " + link)
+} else { Toast.show("Upload failed") }
+}
 }
 private func copyItem(_ item: HistoryItem) {
 guard let img = NSImage(contentsOf: item.url) else { return }

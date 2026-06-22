@@ -1,6 +1,8 @@
 import "dotenv/config";
 import express from "express";
 import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import { loadOrCreateKeyPair, publicKeyHex } from "./keys.js";
 import { buildClaims, issueToken } from "./entitlement.js";
 import { verifyStripeSignature, mapSubscriptionEvent } from "./stripe.js";
@@ -83,6 +85,30 @@ app.post("/v1/share/:id", (req, res) => {
  return res.status(code).json({ error: result.reason });
  }
  res.json({ id: result.link.id, views: result.link.views });
+});
+// Image upload (raw body) + static serve: dependency-free image hosting for Cloud shares.
+const uploadsDir = path.join(process.cwd(), "uploads");
+fs.mkdirSync(uploadsDir, { recursive: true });
+const extFor = (ct) => (ct && ct.includes("jpeg") ? "jpg" : ct && ct.includes("webp") ? "webp" : ct && ct.includes("heic") ? "heic" : "png");
+const mimeFor = (ext) => (ext === "jpg" ? "image/jpeg" : ext === "webp" ? "image/webp" : ext === "heic" ? "image/heic" : "image/png");
+app.post("/v1/upload", express.raw({ type: () => true, limit: "30mb" }), (req, res) => {
+ if (!Buffer.isBuffer(req.body) || req.body.length === 0) return res.status(400).json({ error: "empty body" });
+ const ext = extFor(req.header("Content-Type"));
+ const name = `${crypto.randomUUID()}.${ext}`;
+ try {
+ fs.writeFileSync(path.join(uploadsDir, name), req.body);
+ } catch (e) {
+ return res.status(500).json({ error: "write failed" });
+ }
+ const base = process.env.PUBLIC_BASE || `${req.protocol}://${req.get("host")}`;
+ res.json({ id: name, url: `${base}/f/${name}` });
+});
+app.get("/f/:name", (req, res) => {
+ const safe = path.basename(req.params.name);
+ const file = path.join(uploadsDir, safe);
+ if (!fs.existsSync(file)) return res.status(404).json({ error: "not_found" });
+ res.setHeader("Content-Type", mimeFor(path.extname(safe).slice(1)));
+ fs.createReadStream(file).pipe(res);
 });
 export { app };
 if (!process.env.SLOERSHOT_NO_LISTEN)

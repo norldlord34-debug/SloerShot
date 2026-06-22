@@ -128,7 +128,17 @@ lastImage = image
 CaptureHistory.shared.add(image)
 let qao = QuickAccessOverlay.shared
 qao.onAnnotate = { [weak self] img in self?.openEditor(with: img); self?.editorOpener?() }
-qao.onUpload = { _ in Toast.show("Configure a Cloud server in Settings first") }
+qao.onUpload = { url in
+let server = UserDefaults.standard.string(forKey: "ss.serverUrl") ?? ""
+guard !server.isEmpty else { Toast.show("Configure a Cloud server in Settings first"); return }
+Toast.show("Uploading...")
+Task { @MainActor in
+if let link = await CloudClient(baseURL: server).uploadImage(fileURL: url) {
+let pb = NSPasteboard.general; pb.clearContents(); pb.setString(link, forType: .string)
+Toast.show("Link copied: " + link)
+} else { Toast.show("Upload failed") }
+}
+}
 qao.present(image: image)
 }
 }

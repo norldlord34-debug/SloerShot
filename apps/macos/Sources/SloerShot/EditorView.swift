@@ -23,14 +23,27 @@ enum Tool: UInt32, CaseIterable {
  }
 
  var help: String { String(describing: self).capitalized }
+var key: KeyEquivalent {
+switch self {
+case .arrow: return "a"
+case .rectangle: return "r"
+case .ellipse: return "o"
+case .line: return "l"
+case .freehand: return "p"
+case .text: return "t"
+case .counter: return "n"
+case .highlighter: return "h"
+case .redact: return "b"
+}
+}
 }
 
 /// Drives the shared core editor and republishes its render output for the canvas.
 @MainActor
 final class EditorModel: ObservableObject {
- let handle: EditorHandle
- let background: CGImage?
- let imageSize: CGSize
+ private(set) var handle: EditorHandle
+ @Published private(set) var background: CGImage?
+ @Published private(set) var imageSize: CGSize
  @Published var specs: [ShapeSpec] = []
  @Published var tool: UInt32 = Tool.arrow.rawValue
  @Published var canUndo = false
@@ -59,7 +72,82 @@ final class EditorModel: ObservableObject {
  canRedo = handle.canRedo()
  }
 
- func documentJSON() -> String? { handle.documentJson() }
+ func replaceImage(_ img: CGImage) {
+guard let h = EditorHandle(width: UInt32(img.width), height: UInt32(img.height)) else { return }
+handle = h
+background = img
+imageSize = CGSize(width: Double(img.width), height: Double(img.height))
+handle.setTool(tool)
+refresh()
+}
+func setText(_ text: String) { _ = handle.setSelectedText(text); refresh() }
+func applyFx(_ opJson: String) -> Bool {
+guard let bg = background else { return false }
+let dir = FileManager.default.temporaryDirectory
+let tin = dir.appendingPathComponent("ss-fx-in.png")
+let tout = dir.appendingPathComponent("ss-fx-out.png")
+guard writePNG(bg, to: tin) else { return false }
+guard ShotCore.fxApply(inPath: tin.path, outPath: tout.path, opJson: opJson) == 0 else { return false }
+guard let img = loadCGImage(tout) else { return false }
+replaceImage(img)
+return true
+}
+func applyBeautify(_ json: String) -> Bool {
+guard let bg = background else { return false }
+let dir = FileManager.default.temporaryDirectory
+let tin = dir.appendingPathComponent("ss-bg-in.png")
+let tout = dir.appendingPathComponent("ss-bg-out.png")
+guard writePNG(bg, to: tin) else { return false }
+guard ShotCore.beautify(inPath: tin.path, outPath: tout.path, optionsJson: json) == 0 else { return false }
+guard let img = loadCGImage(tout) else { return false }
+replaceImage(img)
+return true
+}
+func applyEffect(_ key: String) { if let j = EditorModel.effectJson(key) { _ = applyFx(j) } }
+func applyBackdrop(_ key: String) { _ = applyBeautify(EditorModel.beautifyJson(key)) }
+func flattenedURL() -> URL? {
+guard let bg = background else { return nil }
+let dir = FileManager.default.temporaryDirectory
+let tin = dir.appendingPathComponent("ss-flat-in.png")
+let tout = dir.appendingPathComponent("ss-flat-out.png")
+guard writePNG(bg, to: tin) else { return nil }
+if let doc = documentJSON(), ShotCore.export(imagePath: tin.path, docJson: doc, outPath: tout.path) == 0 { return tout }
+return tin
+}
+func copyToClipboard() -> Bool {
+guard let url = flattenedURL(), let img = NSImage(contentsOf: url) else { return false }
+let pb = NSPasteboard.general
+pb.clearContents()
+pb.writeObjects([img])
+return true
+}
+static func effectJson(_ key: String) -> String? {
+switch key {
+case "grayscale": return "{\"op\":\"grayscale\"}"
+case "sepia": return "{\"op\":\"sepia\"}"
+case "invert": return "{\"op\":\"invert\"}"
+case "blur": return "{\"op\":\"blur\",\"sigma\":4.0}"
+case "vignette": return "{\"op\":\"vignette\",\"strength\":0.6}"
+case "brighten": return "{\"op\":\"brightness\",\"delta\":30}"
+case "contrast": return "{\"op\":\"contrast\",\"factor\":1.3}"
+case "rotate": return "{\"op\":\"rotate\",\"deg\":90}"
+case "flip": return "{\"op\":\"flip\",\"axis\":\"h\"}"
+case "border": return "{\"op\":\"border\",\"thickness\":16,\"color\":{\"r\":255,\"g\":255,\"b\":255,\"a\":255}}"
+default: return nil
+}
+}
+static func beautifyJson(_ key: String) -> String {
+let shadow = "{\"color\":{\"r\":0,\"g\":0,\"b\":0,\"a\":255},\"blur\":24.0,\"dx\":0.0,\"dy\":16.0,\"opacity\":0.35}"
+switch key {
+case "ocean": return "{\"background\":{\"Preset\":\"Ocean\"},\"padding\":64,\"corner_radius\":16.0,\"shadow\":" + shadow + "}"
+case "sunset": return "{\"background\":{\"Preset\":\"Sunset\"},\"padding\":64,\"corner_radius\":16.0,\"shadow\":" + shadow + "}"
+case "white": return "{\"background\":{\"Solid\":{\"r\":255,\"g\":255,\"b\":255,\"a\":255}},\"padding\":48,\"corner_radius\":12.0,\"shadow\":" + shadow + "}"
+case "dark": return "{\"background\":{\"Solid\":{\"r\":24,\"g\":24,\"b\":28,\"a\":255}},\"padding\":48,\"corner_radius\":12.0,\"shadow\":" + shadow + "}"
+case "tight": return "{\"background\":{\"Preset\":\"Graphite\"},\"padding\":24,\"corner_radius\":10.0,\"shadow\":null}"
+default: return "{\"background\":{\"Preset\":\"Indigo\"},\"padding\":64,\"corner_radius\":16.0,\"shadow\":" + shadow + "}"
+}
+}
+func documentJSON() -> String? { handle.documentJson() }
 }
 
 struct EditorView: View {
@@ -93,6 +181,7 @@ struct EditorView: View {
  }
  .buttonStyle(.borderless)
  .help(t.help)
+.keyboardShortcut(t.key, modifiers: [])
  .background(model.tool == t.rawValue ? Color.accentColor.opacity(0.25) : Color.clear)
  .cornerRadius(4)
  }
@@ -102,7 +191,36 @@ struct EditorView: View {
  Button { model.redo() } label: { Image(systemName: "arrow.uturn.forward") }
  .disabled(!model.canRedo)
  Spacer()
- Button("Export PNG") { export() }
+ Menu("Effects") {
+Button("Grayscale") { model.applyEffect("grayscale") }
+Button("Sepia") { model.applyEffect("sepia") }
+Button("Invert") { model.applyEffect("invert") }
+Button("Blur") { model.applyEffect("blur") }
+Button("Vignette") { model.applyEffect("vignette") }
+Button("Brighten") { model.applyEffect("brighten") }
+Button("Contrast") { model.applyEffect("contrast") }
+Button("Rotate 90") { model.applyEffect("rotate") }
+Button("Flip") { model.applyEffect("flip") }
+Button("Border") { model.applyEffect("border") }
+}
+.frame(width: 86)
+Menu("Backdrop") {
+Button("Indigo") { model.applyBackdrop("indigo") }
+Button("Ocean") { model.applyBackdrop("ocean") }
+Button("Sunset") { model.applyBackdrop("sunset") }
+Button("White") { model.applyBackdrop("white") }
+Button("Dark") { model.applyBackdrop("dark") }
+Button("Tight") { model.applyBackdrop("tight") }
+}
+.frame(width: 96)
+Button { status = model.copyToClipboard() ? "copied" : "copy failed" } label: { Image(systemName: "doc.on.doc") }
+.keyboardShortcut("c", modifiers: [.command])
+.help("Copy to clipboard")
+Button { if let txt = promptText() { model.setText(txt); status = "text set" } } label: { Image(systemName: "textformat") }
+.help("Set text of selected annotation")
+Button { PinStore.pin(model.flattenedURL()) } label: { Image(systemName: "pin") }
+.help("Pin to screen")
+Button("Export PNG") { export() }
  Text(status).foregroundStyle(.secondary).lineLimit(1)
  }
  .padding(8)
@@ -128,6 +246,33 @@ struct EditorView: View {
 }
 
 /// Write a CGImage to a PNG file via ImageIO.
+func loadCGImage(_ url: URL) -> CGImage? {
+guard let src = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+return CGImageSourceCreateImageAtIndex(src, 0, nil)
+}
+func promptText() -> String? {
+let alert = NSAlert()
+alert.messageText = "Set annotation text"
+alert.informativeText = "Select a text annotation first, then apply."
+alert.addButton(withTitle: "Apply")
+alert.addButton(withTitle: "Cancel")
+let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 280, height: 24))
+alert.accessoryView = field
+return alert.runModal() == .alertFirstButtonReturn ? field.stringValue : nil
+}
+enum PinStore {
+static var pins: [PinPanel] = []
+static func pin(_ url: URL?) {
+guard let url = url, let img = NSImage(contentsOf: url) else { return }
+let maxDim: CGFloat = 600
+if max(img.size.width, img.size.height) > maxDim { let s = maxDim / max(img.size.width, img.size.height); img.size = NSSize(width: img.size.width * s, height: img.size.height * s) }
+var origin = NSPoint(x: 140, y: 140)
+if let scr = NSScreen.main { origin = NSPoint(x: scr.frame.midX - img.size.width / 2, y: scr.frame.midY - img.size.height / 2) }
+let panel = PinPanel(image: img, at: origin)
+panel.orderFrontRegardless()
+pins.append(panel)
+}
+}
 func writePNG(_ image: CGImage, to url: URL) -> Bool {
  guard let dest = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil) else {
  return false

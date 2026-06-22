@@ -80,6 +80,10 @@ Button("Capture Window") {
 Task { if await model.captureWindow() { openWindow(id: "editor") } }
 }
 .keyboardShortcut("5", modifiers: [.command, .shift])
+Button("Scroll Capture (window)") {
+Task { if await model.scrollCapture() { openWindow(id: "editor") } }
+}
+.keyboardShortcut("6", modifiers: [.command, .shift])
 Button("Quick OCR (copy text)") {
 Task { await model.quickOCR() }
 }

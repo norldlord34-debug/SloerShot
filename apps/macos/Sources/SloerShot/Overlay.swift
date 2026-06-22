@@ -63,15 +63,41 @@ struct SelectionView: View {
  let scaleX: CGFloat
  let scaleY: CGFloat
  let onComplete: (CGRect?) -> Void
- @State private var startPt: CGPoint?
+ @State private var aspect: Double = 0
+@State private var startPt: CGPoint?
  @State private var endPt: CGPoint?
 
  private var selection: CGRect? {
  guard let s = startPt, let e = endPt else { return nil }
- return CGRect(x: min(s.x, e.x), y: min(s.y, e.y), width: abs(e.x - s.x), height: abs(e.y - s.y))
+ let x = min(s.x, e.x), y = min(s.y, e.y)
+var w = abs(e.x - s.x), h = abs(e.y - s.y)
+if aspect > 0 { h = w / aspect }
+return CGRect(x: x, y: y, width: w, height: h)
  }
 
- var body: some View {
+ private var aspectBar: some View {
+HStack(spacing: 8) {
+aspectButton("Free", 0)
+aspectButton("1:1", 1)
+aspectButton("4:3", 4.0 / 3.0)
+aspectButton("16:9", 16.0 / 9.0)
+aspectButton("9:16", 9.0 / 16.0)
+}
+.padding(8)
+.background(Color.black.opacity(0.6))
+.cornerRadius(8)
+.padding(.top, 22)
+}
+private func aspectButton(_ label: String, _ value: Double) -> some View {
+Button(label) { aspect = value }
+.buttonStyle(.plain)
+.padding(.horizontal, 8)
+.padding(.vertical, 4)
+.background(aspect == value ? Color.accentColor : Color.white.opacity(0.15))
+.foregroundColor(.white)
+.cornerRadius(5)
+}
+var body: some View {
  Image(decorative: image, scale: 1, orientation: .up)
  .resizable()
  .frame(width: viewSize.width, height: viewSize.height)
@@ -84,7 +110,8 @@ struct SelectionView: View {
  .offset(x: r.minX, y: r.minY)
  }
  }
- .contentShape(Rectangle())
+ .overlay(alignment: .top) { aspectBar }
+.contentShape(Rectangle())
  .gesture(
  DragGesture(minimumDistance: 0)
  .onChanged { v in

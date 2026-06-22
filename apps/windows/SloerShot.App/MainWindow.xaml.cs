@@ -319,6 +319,14 @@ private async void OnCombineImages(object sender, RoutedEventArgs e)
  }
  catch (Exception ex) { StatusText.Text = "Combine failed: " + ex.Message; }
 }
+private async void OnToastDragStarting(UIElement sender, DragStartingEventArgs args)
+{
+ if (_lastCapturePath == null || !File.Exists(_lastCapturePath)) return;
+ var def = args.GetDeferral();
+ try { var f = await StorageFile.GetFileFromPathAsync(_lastCapturePath); args.Data.SetStorageItems(new[] { f }); args.Data.RequestedOperation = DataPackageOperation.Copy; }
+ catch { }
+ finally { def.Complete(); }
+}
 private void FinishCapture(string path, int w, int h, string status)
 {
 _suppressSelection = true;

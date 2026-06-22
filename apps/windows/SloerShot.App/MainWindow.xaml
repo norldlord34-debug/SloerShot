@@ -335,7 +335,7 @@ Title="SloerShot">
 <Border x:Name="CaptureToast" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,18" Background="{StaticResource ToolbarBgBrush}" BorderBrush="{StaticResource StrokeBrush}" BorderThickness="1" CornerRadius="12" Padding="10,8" Visibility="Collapsed">
 <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
 <Border Width="54" Height="34" CornerRadius="6" Background="#0A0A0C" BorderBrush="{StaticResource StrokeBrush}" BorderThickness="1">
-<Image x:Name="ToastThumb" Stretch="UniformToFill" />
+<Image x:Name="ToastThumb" Stretch="UniformToFill" CanDrag="True" DragStarting="OnToastDragStarting" ToolTipService.ToolTip="Drag me to a folder or app" />
 </Border>
 <TextBlock x:Name="ToastText" Text="Captured" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}" FontSize="12" />
 <Button Style="{StaticResource IconButtonStyle}" Click="OnCopy" ToolTipService.ToolTip="Copy"><FontIcon Glyph="&#xE8C8;" FontSize="14" /></Button>

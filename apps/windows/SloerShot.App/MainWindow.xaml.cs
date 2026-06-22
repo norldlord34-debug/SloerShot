@@ -133,26 +133,54 @@ private async void DoCapture(string mode)
 {
 try
 {
-bool hide = _settings.HideWindowDuringCapture;
+bool hide = _settings.HideWindowDuringCapture || mode == "area" || mode == "window";
 int delayMs = _settings.CaptureDelaySeconds * 1000;
 if (hide) { try { this.AppWindow.Hide(); } catch { } }
-if (hide || delayMs > 0) await Task.Delay(Math.Max(delayMs, hide ? 220 : 0));
+if (hide || delayMs > 0) await Task.Delay(Math.Max(delayMs, hide ? 240 : 0));
+(int X, int Y, int W, int H)? winRect = null;
+if (mode == "window") winRect = FrozenScreenCapture.ForegroundWindowRectRelative();
 Directory.CreateDirectory(_settings.SaveFolder);
-var outPath = System.IO.Path.Combine(_settings.SaveFolder, $"capture-{DateTime.Now:yyyyMMdd-HHmmss}.png");
-var result = FrozenScreenCapture.CaptureVirtualScreen(outPath);
+var stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+var frozenPath = System.IO.Path.Combine(_settings.SaveFolder, $"capture-{stamp}.png");
+var result = FrozenScreenCapture.CaptureVirtualScreen(frozenPath);
+if (mode == "area")
+{
+var vr = FrozenScreenCapture.VirtualScreenRect();
+var overlay = new RegionOverlay();
+var pick = await overlay.PickAsync(frozenPath, vr.X, vr.Y, vr.W, vr.H, result.Width, result.Height);
 if (hide) { try { this.AppWindow.Show(); this.Activate(); } catch { } }
+if (pick == null) { try { File.Delete(frozenPath); } catch { } StatusText.Text = "Capture cancelled."; return; }
+var r = pick.Value;
+var areaPath = System.IO.Path.Combine(_settings.SaveFolder, $"area-{stamp}.png");
+var cj = $"{{\"op\":\"crop\",\"x\":{r.X},\"y\":{r.Y},\"w\":{r.W},\"h\":{r.H}}}";
+if (ShotCore.FxApply(frozenPath, areaPath, cj) != 0) { StatusText.Text = "Crop failed."; return; }
+try { File.Delete(frozenPath); } catch { }
+FinishCapture(areaPath, r.W, r.H, "Captured area");
+return;
+}
+if (hide) { try { this.AppWindow.Show(); this.Activate(); } catch { } }
+if (mode == "window" && winRect != null)
+{
+var r = winRect.Value;
+var winPath = System.IO.Path.Combine(_settings.SaveFolder, $"window-{stamp}.png");
+var cj = $"{{\"op\":\"crop\",\"x\":{r.X},\"y\":{r.Y},\"w\":{r.W},\"h\":{r.H}}}";
+if (ShotCore.FxApply(frozenPath, winPath, cj) == 0) { try { File.Delete(frozenPath); } catch { } FinishCapture(winPath, r.W, r.H, "Captured window"); return; }
+}
+FinishCapture(result.Path, result.Width, result.Height, $"Captured {result.Width} x {result.Height}");
+}
+catch (Exception ex) { try { this.AppWindow.Show(); } catch { } StatusText.Text = "Capture failed: " + ex.Message; }
+}
+private void FinishCapture(string path, int w, int h, string status)
+{
 _suppressSelection = true;
-_captures.Insert(0, MakeItem(result.Path));
+_captures.Insert(0, MakeItem(path));
 CaptureCountText.Text = _captures.Count.ToString();
 CapturesList.SelectedIndex = 0;
 _suppressSelection = false;
-LoadImage(result.Path);
-if (mode == "area") { ToolCrop.IsChecked = true; SyncToggles(ToolCrop); ActivateTool("fx:crop"); StatusText.Text = "Captured. Drag a region to crop."; }
-else { StatusText.Text = $"Captured {result.Width} x {result.Height}."; }
-if (_settings.AutoCopyToClipboard) await CopyImageFileAsync(result.Path);
-ShowCaptureToast(result.Path, result.Width, result.Height);
-}
-catch (Exception ex) { try { if (_settings.HideWindowDuringCapture) this.AppWindow.Show(); } catch { } StatusText.Text = "Capture failed: " + ex.Message; }
+LoadImage(path);
+StatusText.Text = status + ".";
+if (_settings.AutoCopyToClipboard) _ = CopyImageFileAsync(path);
+ShowCaptureToast(path, w, h);
 }
 private async Task CopyImageFileAsync(string path)
 {

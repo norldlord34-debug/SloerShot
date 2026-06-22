@@ -133,6 +133,10 @@ Task { await model.quickOCR() }
 .keyboardShortcut("t", modifiers: [.command, .shift])
 Button("Capture Text to Window") { Task { await model.ocrToPanel() } }
 .keyboardShortcut("o", modifiers: [.command, .shift])
+Button("Trim Last Recording...") {
+guard let src = GifExporter.latestRecording() else { Toast.show("No recordings found"); return }
+VideoTrimmer.show(url: src)
+}
 Button("Export Recording to GIF...") {
 guard let src = GifExporter.latestRecording() else { Toast.show("No recordings found"); return }
 let sp = NSSavePanel(); sp.allowedContentTypes = [.gif]; sp.nameFieldStringValue = "SloerShot.gif"

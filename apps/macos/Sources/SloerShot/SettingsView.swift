@@ -32,6 +32,7 @@ struct SettingsView: View {
 @AppStorage("ss.recSystemAudio") private var recSystemAudio = false
 @AppStorage("ss.recHighlightClicks") private var recHighlightClicks = true
 @AppStorage("ss.recShowKeystrokes") private var recShowKeystrokes = false
+@AppStorage("ss.recCamera") private var recCamera = false
 @AppStorage("ss.recRememberArea") private var recRememberArea = false
 @AppStorage("ss.recFPS") private var recFPS = 60
 @AppStorage("ss.recOpenEditor") private var recOpenEditor = false
@@ -144,6 +145,7 @@ Toggle("Show cursor", isOn: $recShowCursor)
 Toggle("Capture system audio", isOn: $recSystemAudio)
 Toggle("Highlight clicks", isOn: $recHighlightClicks)
 Toggle("Show keystrokes", isOn: $recShowKeystrokes)
+Toggle("Show camera (webcam) overlay", isOn: $recCamera)
 Toggle("Remember last recording area", isOn: $recRememberArea)
 }
 Section("Video") {

@@ -106,6 +106,7 @@ Toast.show("Recording started")
 RecordingHUD.shared.show { [weak self] in self?.stopRecording() }
 if UserDefaults.standard.bool(forKey: "ss.recHighlightClicks") { ClickHighlighter.shared.start() }
 if UserDefaults.standard.bool(forKey: "ss.recShowKeystrokes") { KeystrokeOverlay.shared.start() }
+if UserDefaults.standard.bool(forKey: "ss.recCamera") { CameraOverlay.shared.start() }
 } catch {
 lastError = String(describing: error)
 recorder = nil
@@ -118,6 +119,7 @@ guard let eng = recorder else { return }
 RecordingHUD.shared.hide()
 ClickHighlighter.shared.stop()
 KeystrokeOverlay.shared.stop()
+CameraOverlay.shared.stop()
 Task {
 await eng.stop()
 isRecording = false

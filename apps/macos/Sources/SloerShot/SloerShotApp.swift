@@ -67,6 +67,7 @@ struct SloerShotApp: App {
  "ss.recSystemAudio": false,
  "ss.recHighlightClicks": true,
  "ss.recShowKeystrokes": false,
+ "ss.recCamera": false,
  "ss.exportLocation": "Desktop"
  ])
  }

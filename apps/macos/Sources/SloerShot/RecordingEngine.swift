@@ -81,7 +81,8 @@ Task {
 do {
 try await eng.start()
 isRecording = true
-Toast.show("Recording started - Stop from the menu")
+Toast.show("Recording started")
+RecordingHUD.shared.show { [weak self] in self?.stopRecording() }
 } catch {
 lastError = String(describing: error)
 recorder = nil
@@ -91,6 +92,7 @@ Toast.show("Recording failed (grant Screen Recording permission)")
 }
 func stopRecording() {
 guard let eng = recorder else { return }
+RecordingHUD.shared.hide()
 Task {
 await eng.stop()
 isRecording = false

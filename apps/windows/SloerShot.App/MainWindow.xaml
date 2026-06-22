@@ -201,6 +201,27 @@ Title="SloerShot">
 <Button Content="Medium" Tag="4" Click="OnPickStroke" />
 <Button Content="Thick" Tag="8" Click="OnPickStroke" />
 </StackPanel>
+<TextBlock Text="Opacity" FontSize="12" Foreground="{StaticResource SubtleTextBrush}" />
+<Slider Minimum="0.1" Maximum="1.0" StepFrequency="0.05" Value="1.0" Width="180" ValueChanged="OnOpacityChanged" />
+<CheckBox Content="Fill shapes" Click="OnToggleFill" />
+<CheckBox Content="Smart highlighter (snap to text)" Click="OnSmartHighlighter" />
+<TextBlock Text="Arrow style" FontSize="12" Foreground="{StaticResource SubtleTextBrush}" />
+<ComboBox SelectedIndex="0" Width="180" SelectionChanged="OnArrowStyle">
+<ComboBoxItem Content="Straight" />
+<ComboBoxItem Content="Curved" />
+<ComboBoxItem Content="DoubleHeaded" />
+<ComboBoxItem Content="Thin" />
+</ComboBox>
+<TextBlock Text="Text style" FontSize="12" Foreground="{StaticResource SubtleTextBrush}" />
+<ComboBox SelectedIndex="0" Width="180" SelectionChanged="OnTextStyle">
+<ComboBoxItem Content="Plain" />
+<ComboBoxItem Content="Outline" />
+<ComboBoxItem Content="Filled" />
+<ComboBoxItem Content="Rounded" />
+<ComboBoxItem Content="Bubble" />
+<ComboBoxItem Content="Highlight" />
+<ComboBoxItem Content="Shadow" />
+</ComboBox>
 </StackPanel>
 </Flyout>
 </DropDownButton.Flyout>

@@ -50,6 +50,13 @@ private bool _reallyQuit;
 private RecordingController? _recorder;
 private DispatcherTimer? _recTimer;
 private DateTime _recStart;
+private (byte r, byte g, byte b) _styleColor = (0xE5, 0x39, 0x35);
+private bool _fillEnabled;
+private double _styleWidth = 4;
+private double _styleOpacity = 1.0;
+private string _arrowStyle = "Straight";
+private string _textStyle = "Plain";
+private bool _smartHighlighter;
 public MainWindow()
 {
 this.InitializeComponent();
@@ -660,16 +667,36 @@ StatusText.Text = "Picked " + hex + " (copied).";
 }
 catch (Exception ex) { StatusText.Text = "Pick failed: " + ex.Message; }
 }
+private void ApplyStyle()
+{
+ var ci = System.Globalization.CultureInfo.InvariantCulture;
+ string stroke = "{\"r\":" + _styleColor.r + ",\"g\":" + _styleColor.g + ",\"b\":" + _styleColor.b + ",\"a\":255}";
+ string fill = _fillEnabled ? stroke : "null";
+ string json = "{\"stroke\":" + stroke + ",\"fill\":" + fill
+ + ",\"stroke_width\":" + _styleWidth.ToString(ci)
+ + ",\"opacity\":" + _styleOpacity.ToString(ci)
+ + ",\"arrow_style\":\"" + _arrowStyle + "\""
+ + ",\"filled\":" + (_fillEnabled ? "true" : "false")
+ + ",\"text_style\":\"" + _textStyle + "\""
+ + ",\"highlighter_smart\":" + (_smartHighlighter ? "true" : "false")
+ + ",\"pencil_smooth\":true}";
+ EditorCanvas.SetStyleJson(json);
+}
+private void OnOpacityChanged(object sender, RangeBaseValueChangedEventArgs e) { _styleOpacity = e.NewValue; ApplyStyle(); }
+private void OnToggleFill(object sender, RoutedEventArgs e) { _fillEnabled = (sender as CheckBox)?.IsChecked == true; ApplyStyle(); StatusText.Text = _fillEnabled ? "Fill on." : "Fill off."; }
+private void OnArrowStyle(object sender, SelectionChangedEventArgs e) { if ((sender as ComboBox)?.SelectedItem is ComboBoxItem it && it.Content is string sv) { _arrowStyle = sv; ApplyStyle(); } }
+private void OnTextStyle(object sender, SelectionChangedEventArgs e) { if ((sender as ComboBox)?.SelectedItem is ComboBoxItem it && it.Content is string sv) { _textStyle = sv; ApplyStyle(); } }
+private void OnSmartHighlighter(object sender, RoutedEventArgs e) { _smartHighlighter = (sender as CheckBox)?.IsChecked == true; ApplyStyle(); }
 private void OnPickColor(object sender, RoutedEventArgs e)
 {
 var hex = (sender as FrameworkElement)?.Tag as string;
 if (hex == null || hex.Length < 6) return;
-try { byte r = Convert.ToByte(hex.Substring(0, 2), 16); byte g = Convert.ToByte(hex.Substring(2, 2), 16); byte b = Convert.ToByte(hex.Substring(4, 2), 16); EditorCanvas.SetStrokeColor(r, g, b, 255); StatusText.Text = "Annotation color set."; } catch { }
+try { byte r = Convert.ToByte(hex.Substring(0, 2), 16); byte g = Convert.ToByte(hex.Substring(2, 2), 16); byte b = Convert.ToByte(hex.Substring(4, 2), 16); _styleColor = (r, g, b); ApplyStyle(); StatusText.Text = "Annotation color set."; } catch { }
 }
 private void OnPickStroke(object sender, RoutedEventArgs e)
 {
 var t = (sender as FrameworkElement)?.Tag as string;
-if (t != null && double.TryParse(t, out var wv)) { EditorCanvas.SetStrokeWidth(wv); StatusText.Text = "Annotation thickness set."; }
+if (t != null && double.TryParse(t, out var wv)) { _styleWidth = wv; ApplyStyle(); StatusText.Text = "Annotation thickness set."; }
 }
 private void OnEffectMenu(object sender, RoutedEventArgs e)
 {

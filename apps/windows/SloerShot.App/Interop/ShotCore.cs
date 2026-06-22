@@ -251,6 +251,9 @@ public static extern void EditorSetStrokeColor(IntPtr ed, byte r, byte g, byte b
 [DllImport(Lib, EntryPoint = "shotcore_editor_set_stroke_width")]
 public static extern void EditorSetStrokeWidth(IntPtr ed, double width);
 
+ [DllImport(Lib, EntryPoint = "shotcore_editor_set_style_json", CharSet = CharSet.Ansi)]
+ public static extern int EditorSetStyleJson(IntPtr ed, string json);
+
 [DllImport(Lib, EntryPoint = "shotcore_deskew", CharSet = CharSet.Ansi)]
 public static extern int Deskew(string inPath, string outPath);
 

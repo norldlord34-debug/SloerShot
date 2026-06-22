@@ -125,6 +125,7 @@ if ShotCore.fxApply(inPath: url.path, outPath: out.path, opJson: "{\"op\":\"rota
 extension AppModel {
 func showQAO(_ image: CGImage) {
 lastImage = image
+CaptureHistory.shared.add(image)
 let qao = QuickAccessOverlay.shared
 qao.onAnnotate = { [weak self] img in self?.openEditor(with: img); self?.editorOpener?() }
 qao.onUpload = { _ in Toast.show("Configure a Cloud server in Settings first") }

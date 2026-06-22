@@ -64,6 +64,9 @@ EditorHost(model: model)
 Settings {
 SettingsView()
 }
+Window("Capture History", id: "history") {
+HistoryView(model: model)
+}
  }
 }
 
@@ -122,6 +125,8 @@ Text("10 seconds").tag(10)
 
  Divider()
  Button("Open Editor") { openWindow(id: "editor") }
+Button("Capture History") { openWindow(id: "history") }
+.keyboardShortcut("h", modifiers: [.command, .shift])
 SettingsLink { Text("Settings...") }
 .keyboardShortcut(",", modifiers: .command)
  Text("shotcore \(ShotCore.version())")

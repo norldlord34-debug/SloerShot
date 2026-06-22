@@ -76,7 +76,12 @@ struct MenuContent: View {
  @Environment(\.openWindow) private var openWindow
 
  var body: some View {
- Button("Capture Area") {
+ Button("All-In-One Bar") {
+model.editorOpener = { openWindow(id: "editor") }
+AllInOneBar.shared.present(model: model, openEditor: { openWindow(id: "editor") }, openHistory: { openWindow(id: "history") })
+}
+.keyboardShortcut("a", modifiers: [.command, .shift])
+Button("Capture Area") {
  model.editorOpener = { openWindow(id: "editor") }
 Task { await model.captureArea() }
  }

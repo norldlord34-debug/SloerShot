@@ -163,6 +163,27 @@ return NSImage(contentsOf: tout)
 guard let src = flattenedImage() else { return false }
 return beautify(from: src, json: json)
 }
+/// Non-destructive framed preview (aspect ratio + alignment) via beautify_framed.
+func beautifyFramedPreview(source: CGImage, json: String) -> NSImage? {
+let dir = FileManager.default.temporaryDirectory
+let tin = dir.appendingPathComponent("ss-bgprev-in.png")
+let tout = dir.appendingPathComponent("ss-bgprev-out.png")
+guard writePNG(source, to: tin) else { return nil }
+guard ShotCore.beautifyFramed(inPath: tin.path, outPath: tout.path, optionsJson: json) == 0 else { return nil }
+return NSImage(contentsOf: tout)
+}
+/// Commit a framed background (bakes annotations, frames to aspect + alignment).
+@discardableResult func commitBackgroundFramed(json: String) -> Bool {
+guard let src = flattenedImage() else { return false }
+let dir = FileManager.default.temporaryDirectory
+let tin = dir.appendingPathComponent("ss-bg-in.png")
+let tout = dir.appendingPathComponent("ss-bg-out.png")
+guard writePNG(src, to: tin) else { return false }
+guard ShotCore.beautifyFramed(inPath: tin.path, outPath: tout.path, optionsJson: json) == 0 else { return false }
+guard let img = loadCGImage(tout) else { return false }
+replaceImage(img)
+return true
+}
 func applyEffect(_ key: String) { if let j = EditorModel.effectJson(key) { _ = applyFx(j) } }
 func applyBackdrop(_ key: String) { _ = applyBeautify(EditorModel.beautifyJson(key)) }
 func flattenedURL() -> URL? {

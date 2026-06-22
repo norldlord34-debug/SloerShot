@@ -20,8 +20,11 @@ enum ShotCore {
     }
 
     static func beautify(inPath: String, outPath: String, optionsJson: String) -> Int32 {
-        shotcore_beautify_png(inPath, outPath, optionsJson)
-    }
+ shotcore_beautify_png(inPath, outPath, optionsJson)
+ }
+ static func beautifyFramed(inPath: String, outPath: String, optionsJson: String) -> Int32 {
+ shotcore_beautify_framed_png(inPath, outPath, optionsJson)
+ }
 
     static func resolveSelection(desktopJson: String, x: Double, y: Double, w: Double, h: Double) -> String? {
         guard let ptr = shotcore_resolve_selection(desktopJson, x, y, w, h) else { return nil }

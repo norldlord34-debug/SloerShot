@@ -19,6 +19,8 @@ struct BackgroundPanel: View {
 @State private var shadowOn = true
 @State private var shadowOpacity = 0.35
 @State private var shadowBlur = 24.0
+@State private var aspectIndex = 0
+@State private var alignIndex = 4
 private let presets: [SSGradPreset] = [
 SSGradPreset(id: "Indigo", a: Color(red: 0.39, green: 0.40, blue: 0.95), b: Color(red: 0.66, green: 0.33, blue: 0.97)),
 SSGradPreset(id: "Sunset", a: Color(red: 0.98, green: 0.45, blue: 0.09), b: Color(red: 0.93, green: 0.28, blue: 0.60)),
@@ -29,6 +31,7 @@ SSGradPreset(id: "Midnight", a: Color(red: 0.06, green: 0.09, blue: 0.16), b: Co
 SSGradPreset(id: "Graphite", a: Color(red: 0.15, green: 0.15, blue: 0.15), b: Color(red: 0.32, green: 0.32, blue: 0.32)),
 ]
 private let colorPresets: [Color] = [Color(white: 1.0), Color(white: 0.0), Color(white: 0.95), Color(white: 0.2), Color(red: 0.92, green: 0.94, blue: 0.98), Color(red: 0.99, green: 0.95, blue: 0.90), Color(red: 0.24, green: 0.49, blue: 1.0), Color(red: 0.10, green: 0.10, blue: 0.12)]
+private let ratios: [(String, Int, Int)] = [("Auto", 0, 0), ("1:1", 1, 1), ("4:3", 4, 3), ("3:2", 3, 2), ("16:9", 16, 9), ("9:16", 9, 16), ("3:4", 3, 4)]
 
 var body: some View {
 ScrollView {
@@ -45,6 +48,9 @@ sliderRow("Shadow blur", value: $shadowBlur, range: 0...80)
 sliderRow("Shadow opacity", value: Binding(get: { shadowOpacity * 100 }, set: { shadowOpacity = $0 / 100 }), range: 0...100)
 }
 Divider()
+Text("Frame").font(.caption).foregroundStyle(.secondary)
+Picker("Ratio", selection: $aspectIndex) { ForEach(0..<ratios.count, id: \.self) { i in Text(ratios[i].0).tag(i) } }.onChange(of: aspectIndex) { regenerate() }
+alignmentGrid
 HStack { Button("Reset") { resetControls() }; Spacer(); Button("Apply Background") { commit() }.buttonStyle(.borderedProminent) }
 }
 .padding(14)
@@ -79,6 +85,18 @@ ColorPicker("Custom color", selection: $solid).onChange(of: solid) { regenerate(
 }
 }
 
+private var alignmentGrid: some View {
+VStack(spacing: 4) {
+ForEach(0..<3, id: \.self) { row in
+HStack(spacing: 4) {
+ForEach(0..<3, id: \.self) { col in
+let idx = row * 3 + col
+RoundedRectangle(cornerRadius: 4).fill(alignIndex == idx ? Color.accentColor : Color.gray.opacity(0.25)).frame(width: 30, height: 20).onTapGesture { alignIndex = idx; regenerate() }
+}
+}
+}
+}
+}
 private func sliderRow(_ title: String, value: Binding<Double>, range: ClosedRange<Double>) -> some View {
 VStack(alignment: .leading, spacing: 2) {
 HStack { Text(title).font(.caption); Spacer(); Text("\(Int(value.wrappedValue))").font(.caption).foregroundStyle(.secondary) }
@@ -88,11 +106,11 @@ Slider(value: value, in: range) { editing in if !editing { regenerate() } }
 
 private func regenerate() {
 guard let src = source else { return }
-model.backgroundPreview = model.beautifyPreview(source: src, json: optionsJSON())
+model.backgroundPreview = model.beautifyFramedPreview(source: src, json: framedJSON())
 }
-private func commit() { model.commitBackground(json: optionsJSON()); close() }
+private func commit() { model.commitBackgroundFramed(json: framedJSON()); close() }
 private func close() { model.backgroundPreview = nil; model.showBackgroundPanel = false }
-private func resetControls() { bgType = 0; preset = "Indigo"; useCustomGradient = false; padding = 64; corner = 16; shadowOn = true; shadowOpacity = 0.35; shadowBlur = 24; angle = 135; regenerate() }
+private func resetControls() { bgType = 0; preset = "Indigo"; useCustomGradient = false; padding = 64; corner = 16; shadowOn = true; shadowOpacity = 0.35; shadowBlur = 24; angle = 135; aspectIndex = 0; alignIndex = 4; regenerate() }
 
 private func rgba(_ c: Color) -> (Int, Int, Int, Int) {
 let n = NSColor(c).usingColorSpace(.sRGB) ?? NSColor.black
@@ -110,6 +128,10 @@ default:
 if useCustomGradient { return "{\"Gradient\":{\"start\":\(colorJSON(gradStart)),\"end\":\(colorJSON(gradEnd)),\"angle_deg\":\(angle)}}" }
 return "{\"Preset\":\"\(preset)\"}"
 }
+}
+private func framedJSON() -> String {
+let r = ratios[aspectIndex]
+return "{\"beautify\":\(optionsJSON()),\"aspect_w\":\(r.1),\"aspect_h\":\(r.2),\"align\":\(alignIndex)}"
 }
 private func optionsJSON() -> String {
 let shadow = shadowOn ? "{\"color\":{\"r\":0,\"g\":0,\"b\":0,\"a\":255},\"blur\":\(shadowBlur),\"dx\":0.0,\"dy\":16.0,\"opacity\":\(shadowOpacity)}" : "null"

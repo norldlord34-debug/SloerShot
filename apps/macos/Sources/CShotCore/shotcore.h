@@ -32,6 +32,8 @@ int shotcore_export_png(const char *image_path, const char *doc_json, const char
 
 /* Wrap in_path per options_json (BeautifyOptions) and write to out_path. */
 int shotcore_beautify_png(const char *in_path, const char *out_path, const char *options_json);
+/* Beautify with aspect-ratio framing + 9-point alignment. options_json: {"beautify":<opts>,"aspect_w":u32,"aspect_h":u32,"align":0..8}. */
+int shotcore_beautify_framed_png(const char *in_path, const char *out_path, const char *options_json);
 
 /* Resolve a drag selection against a VirtualDesktop JSON; returns CaptureRegion JSON or NULL. */
 char *shotcore_resolve_selection(const char *desktop_json, double x, double y, double w, double h);

@@ -389,6 +389,39 @@ pub fn auto_balance(cw: f64, ch: f64, w: f64, h: f64) -> (f64, f64, f64, f64) {
  let hy = ((h - ch) / 2.0).max(0.0);
  (hx, hy, hx, hy)
 }
+impl Alignment {
+/// Map a 0..=8 index (row-major from top-left) to an alignment; out-of-range maps to Center.
+pub fn from_index(i: u32) -> Alignment {
+match i {
+0 => Alignment::TopLeft,
+1 => Alignment::TopCenter,
+2 => Alignment::TopRight,
+3 => Alignment::CenterLeft,
+4 => Alignment::Center,
+5 => Alignment::CenterRight,
+6 => Alignment::BottomLeft,
+7 => Alignment::BottomCenter,
+8 => Alignment::BottomRight,
+_ => Alignment::Center,
+}
+}
+}
+/// Beautify with optional aspect-ratio framing and 9-point alignment. With ratio None and align Center the result matches beautify.
+pub fn beautify_framed(image: &RgbaImage, opts: &BeautifyOptions, ratio: Option<f64>, align: Alignment) -> RgbaImage {
+let pad = opts.padding;
+let (iw, ih) = (image.width(), image.height());
+let (w, h) = canvas_size_for_aspect(iw, ih, pad, ratio);
+let mut out = RgbaImage::new(w, h);
+fill_background(&mut out, &opts.background);
+let (fh, fv) = align.fractions();
+let x = ((w.saturating_sub(iw) as f32) * fh).round() as i64;
+let y = ((h.saturating_sub(ih) as f32) * fv).round() as i64;
+if let Some(sh) = opts.shadow {
+draw_shadow(&mut out, x as f32, y as f32, iw as f32, ih as f32, opts.corner_radius, &sh);
+}
+composite_rounded(&mut out, image, x, y, opts.corner_radius);
+out
+}
 
 #[cfg(test)]
 mod ext_tests {

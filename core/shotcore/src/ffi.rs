@@ -2140,3 +2140,32 @@ Err(_) => return 0,
 unsafe { &mut *ptr }.set_style(style);
 1
 }
+
+
+/// Beautify with aspect-ratio framing + 9-point alignment. options_json:
+/// {"beautify": <BeautifyOptions>, "aspect_w": u32, "aspect_h": u32, "align": u32 (0..=8)}.
+/// aspect_w/h of 0 means no forced ratio (uniform padding).
+#[no_mangle]
+pub extern "C" fn shotcore_beautify_framed_png(in_path: *const c_char, out_path: *const c_char, options_json: *const c_char) -> c_int {
+let (ip, op, oj) = unsafe {
+match (cstr_to_string(in_path), cstr_to_string(out_path), cstr_to_string(options_json)) {
+(Some(a), Some(b), Some(c)) => (a, b, c),
+_ => return ERR_ARG,
+}
+};
+#[derive(serde::Deserialize)]
+struct Framed {
+beautify: crate::beautify::BeautifyOptions,
+#[serde(default)]
+aspect_w: u32,
+#[serde(default)]
+aspect_h: u32,
+#[serde(default)]
+align: u32,
+}
+let f: Framed = match serde_json::from_str(&oj) { Ok(v) => v, Err(_) => return ERR_JSON };
+let base = match image::open(&ip) { Ok(i) => i.to_rgba8(), Err(_) => return ERR_IMAGE };
+let ratio = if f.aspect_w > 0 && f.aspect_h > 0 { Some(f.aspect_w as f64 / f.aspect_h as f64) } else { None };
+let out = crate::beautify::beautify_framed(&base, &f.beautify, ratio, crate::beautify::Alignment::from_index(f.align));
+match out.save(&op) { Ok(()) => OK, Err(_) => ERR_IMAGE }
+}

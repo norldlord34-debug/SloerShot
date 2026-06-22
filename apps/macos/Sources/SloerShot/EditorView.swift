@@ -390,7 +390,8 @@ Divider()
 Button("PNG (core flatten)") { export() }
 }
 .frame(width: 92)
- Text(status).foregroundStyle(.secondary).lineLimit(1)
+ Text("\(Int(model.imageSize.width))\u{00D7}\(Int(model.imageSize.height)) px").font(.caption).foregroundStyle(.secondary)
+Text(status).foregroundStyle(.secondary).lineLimit(1)
  }
  .padding(8)
  }

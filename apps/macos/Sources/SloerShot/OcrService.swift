@@ -30,4 +30,14 @@ enum OcrService {
  guard let data = try? JSONSerialization.data(withJSONObject: ["lines": lines]) else { return nil }
  return String(data: data, encoding: .utf8)
  }
+
+ static func recognizeText(cgImage: CGImage, width: Int, height: Int) -> String? {
+ let request = VNRecognizeTextRequest()
+ request.recognitionLevel = .accurate
+ let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+ do { try handler.perform([request]) } catch { return nil }
+ guard let observations = request.results else { return nil }
+ let lines = observations.compactMap { $0.topCandidates(1).first?.string }
+ return lines.joined(separator: "\n")
+ }
 }

@@ -7,12 +7,16 @@ import SwiftUI
 final class AppModel: ObservableObject {
  @Published var editor: EditorModel?
  @Published var lastError: String?
+@Published var captureDelaySeconds: Int = 0
+var lastImage: CGImage?
+var pins: [PinPanel] = []
 
  @discardableResult
  func captureFullscreen() async -> Bool {
  guard #available(macOS 14.0, *) else { lastError = "Requires macOS 14+"; return false }
  do {
- let image = try await Capture.captureFullscreen()
+ await applyDelay()
+let image = try await Capture.captureFullscreen()
  openEditor(with: image)
  return true
  } catch {
@@ -25,7 +29,8 @@ final class AppModel: ObservableObject {
  func captureArea() async -> Bool {
  guard #available(macOS 14.0, *) else { lastError = "Requires macOS 14+"; return false }
  do {
- let frozen = try await Capture.captureFullscreen()
+ await applyDelay()
+let frozen = try await Capture.captureFullscreen()
  guard let selection = await SelectionOverlay.present(image: frozen) else { return false }
  guard let cropped = Capture.crop(frozen, to: selection) else { return false }
  openEditor(with: cropped)
@@ -38,6 +43,7 @@ final class AppModel: ObservableObject {
 
  func openEditor(with image: CGImage) {
  editor = EditorModel(background: image, width: UInt32(image.width), height: UInt32(image.height))
+lastImage = image
  }
 }
 
@@ -70,6 +76,28 @@ struct MenuContent: View {
  Task { if await model.captureFullscreen() { openWindow(id: "editor") } }
  }
  .keyboardShortcut("9", modifiers: [.command, .shift])
+Button("Capture Window") {
+Task { if await model.captureWindow() { openWindow(id: "editor") } }
+}
+.keyboardShortcut("5", modifiers: [.command, .shift])
+Button("Quick OCR (copy text)") {
+Task { await model.quickOCR() }
+}
+.keyboardShortcut("t", modifiers: [.command, .shift])
+Button("Pick Color (hex)") {
+model.pickColor()
+}
+.keyboardShortcut("c", modifiers: [.command, .shift])
+Button("Pin Last Capture") {
+model.pinLast()
+}
+.keyboardShortcut("p", modifiers: [.command, .shift])
+Picker("Capture delay", selection: $model.captureDelaySeconds) {
+Text("None").tag(0)
+Text("3 seconds").tag(3)
+Text("5 seconds").tag(5)
+Text("10 seconds").tag(10)
+}
 
  Divider()
  Button("Open Editor") { openWindow(id: "editor") }

@@ -144,6 +144,15 @@ Text("10 seconds").tag(10)
 
  Divider()
  Button("Open Editor") { openWindow(id: "editor") }
+Button("Open Image...") {
+let panel = NSOpenPanel()
+panel.allowedContentTypes = [.png, .jpeg, .image]
+panel.allowsMultipleSelection = false
+if panel.runModal() == .OK, let url = panel.url, let img = loadCGImage(url) {
+model.openEditor(with: img)
+openWindow(id: "editor")
+}
+}
 Button("Capture History") { openWindow(id: "history") }
 .keyboardShortcut("h", modifiers: [.command, .shift])
 SettingsLink { Text("Settings...") }

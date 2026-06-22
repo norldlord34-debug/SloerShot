@@ -31,7 +31,7 @@ struct SettingsView: View {
 @AppStorage("ss.recShowCursor") private var recShowCursor = true
 @AppStorage("ss.recSystemAudio") private var recSystemAudio = false
 @AppStorage("ss.recHighlightClicks") private var recHighlightClicks = true
-@AppStorage("ss.recShowKeystrokes") private var recShowKeystrokes = true
+@AppStorage("ss.recShowKeystrokes") private var recShowKeystrokes = false
 @AppStorage("ss.recRememberArea") private var recRememberArea = false
 @AppStorage("ss.recFPS") private var recFPS = 60
 @AppStorage("ss.recOpenEditor") private var recOpenEditor = false

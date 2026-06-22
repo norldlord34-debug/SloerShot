@@ -50,6 +50,16 @@ final class EditorModel: ObservableObject {
  @Published var canRedo = false
  @Published var showBackgroundPanel = false
  @Published var backgroundPreview: NSImage?
+@Published var strokeColor = Color.red
+@Published var fillEnabled = false
+@Published var fillColor = Color(red: 0.0, green: 0.48, blue: 1.0)
+@Published var strokeWidth = 4.0
+@Published var styleOpacity = 1.0
+@Published var arrowStyle = "Straight"
+@Published var filledShapes = false
+@Published var textStyle = "Plain"
+@Published var smartHighlighter = false
+@Published var pencilSmooth = true
 
  init?(background: CGImage?, width: UInt32, height: UInt32) {
  guard let h = EditorHandle(width: width, height: height) else { return nil }
@@ -83,6 +93,14 @@ handle.setTool(tool)
 refresh()
 }
 func setText(_ text: String) { _ = handle.setSelectedText(text); refresh() }
+func styleJSON() -> String {
+let s = ssColorRGBA(strokeColor)
+let stroke = "{\"r\":\(s.0),\"g\":\(s.1),\"b\":\(s.2),\"a\":\(s.3)}"
+var fill = "null"
+if fillEnabled { let f = ssColorRGBA(fillColor); fill = "{\"r\":\(f.0),\"g\":\(f.1),\"b\":\(f.2),\"a\":\(f.3)}" }
+return "{\"stroke\":\(stroke),\"fill\":\(fill),\"stroke_width\":\(strokeWidth),\"opacity\":\(styleOpacity),\"arrow_style\":\"\(arrowStyle)\",\"filled\":\(filledShapes),\"text_style\":\"\(textStyle)\",\"highlighter_smart\":\(smartHighlighter),\"pencil_smooth\":\(pencilSmooth)}"
+}
+func applyStyle() { _ = handle.setStyleJson(styleJSON()); refresh() }
 func applyFx(_ opJson: String) -> Bool {
 guard let bg = background else { return false }
 let dir = FileManager.default.temporaryDirectory
@@ -177,6 +195,7 @@ func documentJSON() -> String? { handle.documentJson() }
 struct EditorView: View {
  @StateObject var model: EditorModel
  @State private var status = ""
+ @State private var showStyle = false
 
  var body: some View {
 HStack(spacing: 0) {
@@ -252,6 +271,10 @@ Button { model.showBackgroundPanel.toggle() } label: { Image(systemName: "photo.
 .help("Background tool (gradients, padding, shadow)")
 .background(model.showBackgroundPanel ? Color.accentColor.opacity(0.25) : Color.clear)
 .cornerRadius(4)
+Button { showStyle.toggle() } label: { RoundedRectangle(cornerRadius: 4).fill(model.strokeColor).frame(width: 22, height: 22).overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.primary.opacity(0.35), lineWidth: 1)) }
+.buttonStyle(.borderless)
+.help("Color and style")
+.popover(isPresented: $showStyle, arrowEdge: .bottom) { StylePopover(model: model) }
 Button { status = model.copyToClipboard() ? "copied" : "copy failed" } label: { Image(systemName: "doc.on.doc") }
 .keyboardShortcut("c", modifiers: [.command])
 .help("Copy to clipboard")
@@ -318,4 +341,11 @@ func writePNG(_ image: CGImage, to url: URL) -> Bool {
  }
  CGImageDestinationAddImage(dest, image, nil)
  return CGImageDestinationFinalize(dest)
+}
+
+
+/// Convert a SwiftUI Color to sRGB 0-255 RGBA components for core style JSON.
+func ssColorRGBA(_ c: Color) -> (Int, Int, Int, Int) {
+let n = NSColor(c).usingColorSpace(.sRGB) ?? NSColor.black
+return (Int((n.redComponent * 255).rounded()), Int((n.greenComponent * 255).rounded()), Int((n.blueComponent * 255).rounded()), Int((n.alphaComponent * 255).rounded()))
 }

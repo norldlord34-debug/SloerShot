@@ -139,6 +139,8 @@ int shotcore_editor_can_undo(ShotEditor *ed);
 int shotcore_editor_can_redo(ShotEditor *ed);
 void shotcore_editor_set_stroke_color(ShotEditor *ed, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 void shotcore_editor_set_stroke_width(ShotEditor *ed, double width);
+/* Set the active shape style (and recolor the selection) from a ShapeStyle JSON. Returns 1 on success. */
+int shotcore_editor_set_style_json(ShotEditor *ed, const char *style_json);
 
 #ifdef __cplusplus
 }

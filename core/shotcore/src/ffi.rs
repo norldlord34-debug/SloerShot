@@ -2121,3 +2121,22 @@ let op = match unsafe { cstr_to_string(out_path) } { Some(s) => s, None => retur
 let img = match image::open(&ip) { Ok(i) => i.to_rgba8(), Err(_) => return ERR_IMAGE };
 match crate::deskew::deskew(&img).save(&op) { Ok(_) => OK, Err(_) => ERR_IMAGE }
 }
+
+
+/// Set the active shape style (and recolor the current selection) from a ShapeStyle JSON. Returns 1 on success, 0 on failure.
+#[no_mangle]
+pub extern "C" fn shotcore_editor_set_style_json(ptr: *mut crate::editor::Editor, style_json: *const c_char) -> c_int {
+if ptr.is_null() {
+return 0;
+}
+let s = match unsafe { cstr_to_string(style_json) } {
+Some(v) => v,
+None => return 0,
+};
+let style: crate::model::ShapeStyle = match serde_json::from_str(&s) {
+Ok(st) => st,
+Err(_) => return 0,
+};
+unsafe { &mut *ptr }.set_style(style);
+1
+}

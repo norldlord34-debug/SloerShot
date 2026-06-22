@@ -1,4 +1,4 @@
-﻿import CShotCore
+import CShotCore
 import Foundation
 
 /// Swift wrapper over the shotcore C ABI (see Sources/CShotCore/shotcore.h).
@@ -66,6 +66,9 @@ final class EditorHandle {
     @discardableResult func bringToFront() -> Bool { shotcore_editor_bring_to_front(ptr) != 0 }
     @discardableResult func sendToBack() -> Bool { shotcore_editor_send_to_back(ptr) != 0 }
     @discardableResult func setSelectedText(_ text: String) -> Bool { shotcore_editor_set_selected_text(ptr, text) != 0 }
+ func setStrokeColor(r: UInt8, g: UInt8, b: UInt8, a: UInt8) { shotcore_editor_set_stroke_color(ptr, r, g, b, a) }
+ func setStrokeWidth(_ w: Double) { shotcore_editor_set_stroke_width(ptr, w) }
+ @discardableResult func setStyleJson(_ json: String) -> Bool { shotcore_editor_set_style_json(ptr, json) != 0 }
     func canUndo() -> Bool { shotcore_editor_can_undo(ptr) != 0 }
     func canRedo() -> Bool { shotcore_editor_can_redo(ptr) != 0 }
     func renderJson() -> String? {

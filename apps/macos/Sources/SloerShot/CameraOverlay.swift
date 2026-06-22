@@ -18,13 +18,19 @@ session.sessionPreset = .high
 guard let input = try? AVCaptureDeviceInput(device: device), session.canAddInput(input) else { return }
 session.addInput(input)
 var side: CGFloat = 200
-let camJson = "{\"shape\":\"Circle\",\"position\":\"BottomLeft\",\"size_frac\":0.18,\"fullscreen\":false,\"mirrored\":true}"
+let d = UserDefaults.standard
+let frac = d.double(forKey: "ss.recCameraSize")
+let sizeFrac = frac > 0 ? min(0.6, max(0.08, frac)) : 0.18
+let camJson = "{\"shape\":\"Circle\",\"position\":\"BottomLeft\",\"size_frac\":\(sizeFrac),\"fullscreen\":false,\"mirrored\":true}"
 if let rj = ShotCore.recordCameraRect(cameraJson: camJson, width: UInt32(scr.frame.width), height: UInt32(scr.frame.height)),
 let data = rj.data(using: .utf8),
 let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
 let w = obj["w"] as? Double { side = CGFloat(w) }
 let margin: CGFloat = 28
-let origin = NSPoint(x: scr.frame.minX + margin, y: scr.frame.minY + margin)
+let corner = d.string(forKey: "ss.recCameraCorner") ?? "Bottom Left"
+let ox = corner.contains("Right") ? scr.frame.maxX - side - margin : scr.frame.minX + margin
+let oy = corner.contains("Top") ? scr.frame.maxY - side - margin : scr.frame.minY + margin
+let origin = NSPoint(x: ox, y: oy)
 let win = NSWindow(contentRect: NSRect(origin: origin, size: NSSize(width: side, height: side)), styleMask: [.borderless], backing: .buffered, defer: false)
 win.isOpaque = false
 win.backgroundColor = .clear

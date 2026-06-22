@@ -20,6 +20,7 @@ private var panel: NSPanel?
 private var image: CGImage?
 private var nsImage: NSImage?
 private var fileURL: URL?
+private var autoCloseTimer: Timer?
 var onAnnotate: ((CGImage) -> Void)?
 var onUpload: ((URL) -> Void)?
 func present(image: CGImage) {
@@ -91,6 +92,11 @@ p.setFrameOrigin(NSPoint(x: x, y: y))
 }
 p.orderFrontRegardless()
 panel = p
+if UserDefaults.standard.bool(forKey: "ss.qaoAutoClose") {
+let interval = max(3, UserDefaults.standard.integer(forKey: "ss.qaoInterval"))
+autoCloseTimer?.invalidate()
+autoCloseTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(interval), repeats: false) { [weak self] _ in self?.closeAction() }
+}
 }
 private func buildMenu() -> NSMenu {
 let menu = NSMenu()
@@ -121,7 +127,7 @@ if sp.runModal() == .OK, let url = sp.url { _ = writePNG(img, to: url); Toast.sh
 @objc private func annotateAction() { if let img = image { onAnnotate?(img) }; closeAction() }
 @objc private func uploadAction() { if let url = fileURL { onUpload?(url) } }
 @objc private func shareAction() { if let url = fileURL { Task { @MainActor in ShareHelper.present(urls: [url]) } } }
-@objc private func closeAction() { panel?.orderOut(nil); panel = nil }
+@objc private func closeAction() { autoCloseTimer?.invalidate(); autoCloseTimer = nil; panel?.orderOut(nil); panel = nil }
 @objc private func revealAction() { if let url = fileURL { NSWorkspace.shared.activateFileViewerSelecting([url]) } }
 @objc private func quickLookAction() { if let url = fileURL { NSWorkspace.shared.open(url) } }
 @objc private func rotateLeftAction() {

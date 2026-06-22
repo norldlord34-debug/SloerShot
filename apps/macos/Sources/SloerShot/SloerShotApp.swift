@@ -69,6 +69,10 @@ struct SloerShotApp: App {
  "ss.recShowKeystrokes": false,
  "ss.recCamera": false,
  "ss.scrollFrames": 8,
+ "ss.recCameraCorner": "Bottom Left",
+ "ss.recCameraSize": 0.18,
+ "ss.qaoAutoClose": false,
+ "ss.qaoInterval": 30,
  "ss.exportLocation": "Desktop"
  ])
  }
@@ -95,99 +99,44 @@ struct MenuContent: View {
  @Environment(\.openWindow) private var openWindow
 
  var body: some View {
- Button("All-In-One Bar") {
-model.editorOpener = { openWindow(id: "editor") }
-AllInOneBar.shared.present(model: model, openEditor: { openWindow(id: "editor") }, openHistory: { openWindow(id: "history") })
-}
+Section("Capture") {
+Button("All-In-One Bar") { model.editorOpener = { openWindow(id: "editor") }; AllInOneBar.shared.present(model: model, openEditor: { openWindow(id: "editor") }, openHistory: { openWindow(id: "history") }) }
 .keyboardShortcut("a", modifiers: [.command, .shift])
-Button("Capture Area") {
- model.editorOpener = { openWindow(id: "editor") }
-Task { await model.captureArea() }
- }
- .keyboardShortcut("4", modifiers: [.command, .shift])
-
- Button("Capture Fullscreen") {
- model.editorOpener = { openWindow(id: "editor") }
-Task { await model.captureFullscreen() }
- }
- .keyboardShortcut("9", modifiers: [.command, .shift])
-Button("Capture Window") {
-model.editorOpener = { openWindow(id: "editor") }
-Task { await model.captureWindow() }
-}
+Button("Capture Area") { model.editorOpener = { openWindow(id: "editor") }; Task { await model.captureArea() } }
+.keyboardShortcut("4", modifiers: [.command, .shift])
+Button("Capture Fullscreen") { model.editorOpener = { openWindow(id: "editor") }; Task { await model.captureFullscreen() } }
+.keyboardShortcut("9", modifiers: [.command, .shift])
+Button("Capture Window") { model.editorOpener = { openWindow(id: "editor") }; Task { await model.captureWindow() } }
 .keyboardShortcut("5", modifiers: [.command, .shift])
-Button("Scroll Capture (window)") {
-model.editorOpener = { openWindow(id: "editor") }
-Task { await model.scrollCapture() }
-}
+Button("Scroll Capture (window)") { model.editorOpener = { openWindow(id: "editor") }; Task { await model.scrollCapture() } }
 .keyboardShortcut("6", modifiers: [.command, .shift])
+Picker("Capture delay", selection: $model.captureDelaySeconds) { Text("None").tag(0); Text("3 seconds").tag(3); Text("5 seconds").tag(5); Text("10 seconds").tag(10) }
+}
+Section("Recording") {
 if model.isRecording {
-Button("Stop Recording") { model.stopRecording() }
-.keyboardShortcut("2", modifiers: [.command, .shift])
+Button("Stop Recording") { model.stopRecording() }.keyboardShortcut("2", modifiers: [.command, .shift])
 } else {
-Button("Start Recording") { model.startRecording() }
-.keyboardShortcut("2", modifiers: [.command, .shift])
+Button("Start Recording") { model.startRecording() }.keyboardShortcut("2", modifiers: [.command, .shift])
 }
-Button("Quick OCR (copy text)") {
-Task { await model.quickOCR() }
+Button("Trim Last Recording...") { guard let src = GifExporter.latestRecording() else { Toast.show("No recordings found"); return }; VideoTrimmer.show(url: src) }
+Button("Export Recording to GIF...") { guard let src = GifExporter.latestRecording() else { Toast.show("No recordings found"); return }; let sp = NSSavePanel(); sp.allowedContentTypes = [.gif]; sp.nameFieldStringValue = "SloerShot.gif"; if sp.runModal() == .OK, let dest = sp.url { Toast.show("Exporting GIF..."); Task { let ok = await GifExporter.export(from: src, to: dest); Toast.show(ok ? "Saved " + dest.lastPathComponent : "GIF export failed") } } }
 }
-.keyboardShortcut("t", modifiers: [.command, .shift])
-Button("Capture Text to Window") { Task { await model.ocrToPanel() } }
-.keyboardShortcut("o", modifiers: [.command, .shift])
-Button("Trim Last Recording...") {
-guard let src = GifExporter.latestRecording() else { Toast.show("No recordings found"); return }
-VideoTrimmer.show(url: src)
+Section("Tools") {
+Button("Quick OCR (copy text)") { Task { await model.quickOCR() } }.keyboardShortcut("t", modifiers: [.command, .shift])
+Button("Capture Text to Window") { Task { await model.ocrToPanel() } }.keyboardShortcut("o", modifiers: [.command, .shift])
+Button("Pick Color (hex)") { model.pickColor() }.keyboardShortcut("c", modifiers: [.command, .shift])
+Button("Pin Last Capture") { model.pinLast() }.keyboardShortcut("p", modifiers: [.command, .shift])
 }
-Button("Export Recording to GIF...") {
-guard let src = GifExporter.latestRecording() else { Toast.show("No recordings found"); return }
-let sp = NSSavePanel(); sp.allowedContentTypes = [.gif]; sp.nameFieldStringValue = "SloerShot.gif"
-if sp.runModal() == .OK, let dest = sp.url {
-Toast.show("Exporting GIF...")
-Task { let ok = await GifExporter.export(from: src, to: dest); Toast.show(ok ? "Saved " + dest.lastPathComponent : "GIF export failed") }
+Section("Library") {
+Button("Open Editor") { openWindow(id: "editor") }
+Button("Combine Images...") { let panel = NSOpenPanel(); panel.allowedContentTypes = [.png, .jpeg, .image]; panel.allowsMultipleSelection = true; if panel.runModal() == .OK, !panel.urls.isEmpty, let img = CombineImages.combine(urls: panel.urls) { model.openEditor(with: img); openWindow(id: "editor") } }
+Button("Open Image...") { let panel = NSOpenPanel(); panel.allowedContentTypes = [.png, .jpeg, .image]; panel.allowsMultipleSelection = false; if panel.runModal() == .OK, let url = panel.url, let img = loadCGImage(url) { model.openEditor(with: img); openWindow(id: "editor") } }
+Button("Capture History") { openWindow(id: "history") }.keyboardShortcut("h", modifiers: [.command, .shift])
 }
+Divider()
+SettingsLink { Text("Settings...") }.keyboardShortcut(",", modifiers: .command)
+Text("shotcore \(ShotCore.version())")
+Divider()
+Button("Quit SloerShot") { NSApplication.shared.terminate(nil) }.keyboardShortcut("q")
 }
-Button("Pick Color (hex)") {
-model.pickColor()
-}
-.keyboardShortcut("c", modifiers: [.command, .shift])
-Button("Pin Last Capture") {
-model.pinLast()
-}
-.keyboardShortcut("p", modifiers: [.command, .shift])
-Picker("Capture delay", selection: $model.captureDelaySeconds) {
-Text("None").tag(0)
-Text("3 seconds").tag(3)
-Text("5 seconds").tag(5)
-Text("10 seconds").tag(10)
-}
-
- Divider()
- Button("Open Editor") { openWindow(id: "editor") }
-Button("Combine Images...") {
-let panel = NSOpenPanel()
-panel.allowedContentTypes = [.png, .jpeg, .image]
-panel.allowsMultipleSelection = true
-if panel.runModal() == .OK, !panel.urls.isEmpty, let img = CombineImages.combine(urls: panel.urls) {
-model.openEditor(with: img)
-openWindow(id: "editor")
-}
-}
-Button("Open Image...") {
-let panel = NSOpenPanel()
-panel.allowedContentTypes = [.png, .jpeg, .image]
-panel.allowsMultipleSelection = false
-if panel.runModal() == .OK, let url = panel.url, let img = loadCGImage(url) {
-model.openEditor(with: img)
-openWindow(id: "editor")
-}
-}
-Button("Capture History") { openWindow(id: "history") }
-.keyboardShortcut("h", modifiers: [.command, .shift])
-SettingsLink { Text("Settings...") }
-.keyboardShortcut(",", modifiers: .command)
- Text("shotcore \(ShotCore.version())")
- Divider()
- Button("Quit SloerShot") { NSApplication.shared.terminate(nil) }
- .keyboardShortcut("q")
- }
 }

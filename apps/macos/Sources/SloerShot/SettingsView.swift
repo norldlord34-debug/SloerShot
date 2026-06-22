@@ -33,6 +33,8 @@ struct SettingsView: View {
 @AppStorage("ss.recHighlightClicks") private var recHighlightClicks = true
 @AppStorage("ss.recShowKeystrokes") private var recShowKeystrokes = false
 @AppStorage("ss.recCamera") private var recCamera = false
+@AppStorage("ss.recCameraCorner") private var recCameraCorner = "Bottom Left"
+@AppStorage("ss.recCameraSize") private var recCameraSize = 0.18
 @AppStorage("ss.recRememberArea") private var recRememberArea = false
 @AppStorage("ss.recFPS") private var recFPS = 60
 @AppStorage("ss.recOpenEditor") private var recOpenEditor = false
@@ -147,6 +149,8 @@ Toggle("Capture system audio", isOn: $recSystemAudio)
 Toggle("Highlight clicks", isOn: $recHighlightClicks)
 Toggle("Show keystrokes", isOn: $recShowKeystrokes)
 Toggle("Show camera (webcam) overlay", isOn: $recCamera)
+Picker("Camera corner", selection: $recCameraCorner) { Text("Bottom Left").tag("Bottom Left"); Text("Bottom Right").tag("Bottom Right"); Text("Top Left").tag("Top Left"); Text("Top Right").tag("Top Right") }.disabled(!recCamera)
+VStack(alignment: .leading) { Text("Camera size"); Slider(value: $recCameraSize, in: 0.08...0.6) }.disabled(!recCamera)
 Toggle("Remember last recording area", isOn: $recRememberArea)
 }
 Section("Video") {

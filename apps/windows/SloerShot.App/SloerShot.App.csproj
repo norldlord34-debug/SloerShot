@@ -17,9 +17,10 @@
  <ApplicationManifest>app.manifest</ApplicationManifest>
     </PropertyGroup>
     <ItemGroup>
+        <PackageReference Include="H.NotifyIcon.WinUI" Version="2.3.2" />
         <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.*" />
         <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.*" />
- <PackageReference Include="System.Drawing.Common" Version="8.0.*" />
+ <PackageReference Include="System.Drawing.Common" Version="9.0.*" />
  <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.251219" />
     </ItemGroup>
     <!-- Copy the native core (build it first with cargo, release profile). -->

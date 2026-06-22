@@ -45,6 +45,8 @@ private bool _selecting;
 private Point _selStart;
 private Microsoft.UI.Xaml.Shapes.Rectangle? _marquee;
 private bool _suppressSelection;
+private TrayIcon? _tray;
+private bool _reallyQuit;
 public MainWindow()
 {
 this.InitializeComponent();
@@ -69,6 +71,8 @@ catch { }
 try { this.ExtendsContentIntoTitleBar = true; this.SetTitleBar(TitleBar); } catch { }
 InitHotkey();
 this.Closed += OnWindowClosed;
+try { this.AppWindow.Closing += OnAppWindowClosing; } catch { }
+SetupTray();
 }
 private void InitHotkey()
 {
@@ -824,9 +828,32 @@ return folder?.Path;
 }
 catch { return null; }
 }
+private void SetupTray()
+{
+ try
+ {
+ _tray = new TrayIcon();
+ _tray.Setup(
+ onShow: ShowFromTray,
+ onCapture: mode => { var dq = DispatcherQueue; if (dq != null) dq.TryEnqueue(() => DoCapture(mode)); else DoCapture(mode); },
+ onSettings: () => { ShowFromTray(); var dq = DispatcherQueue; if (dq != null) dq.TryEnqueue(() => OnOpenSettings(this, new RoutedEventArgs())); },
+ onQuit: () => { _reallyQuit = true; try { _tray?.Dispose(); } catch { } this.Close(); });
+ }
+ catch { }
+}
+private void ShowFromTray()
+{
+ try { this.AppWindow.Show(); } catch { }
+ try { this.Activate(); } catch { }
+}
+private void OnAppWindowClosing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs e)
+{
+ if (!_reallyQuit) { e.Cancel = true; try { sender.Hide(); } catch { } }
+}
 private void OnWindowClosed(object sender, WindowEventArgs args)
 {
-try { _hotkey?.Detach(); } catch { }
-try { _settings.Save(); } catch { }
+ try { _tray?.Dispose(); } catch { }
+ try { _hotkey?.Detach(); } catch { }
+ try { _settings.Save(); } catch { }
 }
 }

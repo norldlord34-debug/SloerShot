@@ -108,3 +108,11 @@ Shipped + CI-green (swift build on macOS) in order:
 - Phase 9: Capture Text window (review/edit OCR, copy, save .txt, links, table to CSV/Markdown).
 - Phase 6: floating recording HUD (live elapsed time + Stop).
 Remaining/next: Phase 6 deep (mic/camera/clicks/keystrokes), Phase 7 video editor, Phase 4 crop/resize/combine, Phase 8 scroll polish, Phase 14 integrations.
+
+
+### Continued (batch 2)
+- Phase 4: interactive crop tool (drag + dimmed mask + rule-of-thirds) and resize (25-200%) via core fx.
+- Open Image... menu entry (load external image into the editor).
+- Phase 6 deep: recording reads cursor/fps from settings; opt-in system audio (AAC track); highlight clicks (fading-ring overlay); show keystrokes (opt-in on-screen badge). All overlays are captured by the recording; nothing logged/stored.
+- Phase 7: export a recording to animated GIF (AVAssetImageGenerator + ImageIO).
+Note: macOS AV features are CI-compile-verified only (no Mac for runtime testing); the click/keystroke overlays are ephemeral and never log or transmit input.

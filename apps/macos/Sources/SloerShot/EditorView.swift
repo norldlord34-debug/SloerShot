@@ -333,6 +333,8 @@ Button { if let txt = promptText() { model.setText(txt); status = "text set" } }
 .help("Set text of selected annotation")
 Button { PinStore.pin(model.flattenedURL()) } label: { Image(systemName: "pin") }
 .help("Pin to screen")
+Button { if let url = model.flattenedURL() { ShareHelper.present(urls: [url]) } } label: { Image(systemName: "square.and.arrow.up") }
+.help("Share")
 Menu("Save As") {
 Button("PNG") { saveAs("png", .png) }
 Button("JPEG") { saveAs("jpg", .jpeg) }

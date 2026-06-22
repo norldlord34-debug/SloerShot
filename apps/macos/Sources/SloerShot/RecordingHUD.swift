@@ -8,10 +8,10 @@ static let shared = RecordingHUD()
 private var panel: NSPanel?
 private var timer: Timer?
 private var startTime = Date()
-private var onStop: (() -> Void)?
+private var onStop: (@MainActor () -> Void)?
 private weak var timeLabel: NSTextField?
 
-func show(onStop: @escaping () -> Void) {
+func show(onStop: @escaping @MainActor () -> Void) {
 self.onStop = onStop
 startTime = Date()
 build()

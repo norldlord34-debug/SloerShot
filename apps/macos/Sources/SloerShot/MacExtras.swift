@@ -173,3 +173,16 @@ panel.orderFrontRegardless()
 pins.append(panel)
 }
 }
+
+
+// Native macOS share sheet (Mail, Messages, AirDrop, Notes, etc.) for captured files.
+enum ShareHelper {
+@MainActor
+static func present(urls: [URL]) {
+guard !urls.isEmpty else { return }
+let picker = NSSharingServicePicker(items: urls)
+if let win = NSApp.keyWindow ?? NSApp.windows.first(where: { $0.isVisible }), let cv = win.contentView {
+picker.show(relativeTo: .zero, of: cv, preferredEdge: .minY)
+}
+}
+}

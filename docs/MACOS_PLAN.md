@@ -91,3 +91,20 @@ Verification: CI macOS job runs swift build (no Mac here to run the GUI). Status
 ## Build order (this initiative)
 P1 QAO -> P3 crosshair/magnifier -> P13 Settings window -> P5 Background panel -> P4 Annotate parity -> P6/7 Recording+editor -> P11 history -> P2 All-In-One -> P9 OCR extras -> P8 scrolling -> P10 pin extras -> P12 cloud -> P14 integrations.
 Each phase: implement in Swift, push, confirm CI macOS swift build green, then next.
+
+
+## Progress log (live)
+Shipped + CI-green (swift build on macOS) in order:
+- Phase 1: Quick Access Overlay + crosshair/magnifier selection.
+- Phase 13: native Settings window (9 tabs, @AppStorage).
+- Phase 5: Background tool side panel (gradients/color/transparent, padding/corners/shadow, live preview).
+- Phase 5+: aspect-ratio framing + 9-point alignment (core beautify_framed FFI).
+- Phase 4a: color/style popover + core set_style_json FFI (stroke/fill/opacity/width/arrow style/text style/smart highlighter).
+- Phase 4b: Save As PNG/JPG/WebP/HEIC + expanded Effects (rotate/flip/sharpen/white balance/auto color/auto-straighten).
+- Phase 11: Capture History (on-disk store + thumbnail grid window, search, open/copy/pin/cloud/reveal/delete).
+- Phase 2: All-In-One floating capture bar (Cmd+Shift+A).
+- Phase 12: real Cloud image hosting (backend /v1/upload + /f/:name, verified end-to-end) wired into QAO + History.
+- Phase 10: Settings wired to behavior (pin rounded/shadow/border, QAO position, after-screenshot copy/save/show).
+- Phase 9: Capture Text window (review/edit OCR, copy, save .txt, links, table to CSV/Markdown).
+- Phase 6: floating recording HUD (live elapsed time + Stop).
+Remaining/next: Phase 6 deep (mic/camera/clicks/keystrokes), Phase 7 video editor, Phase 4 crop/resize/combine, Phase 8 scroll polish, Phase 14 integrations.

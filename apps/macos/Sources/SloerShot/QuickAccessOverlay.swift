@@ -99,6 +99,7 @@ menu.addItem(NSMenuItem(title: "Pin to the Screen", action: #selector(pinAction)
 menu.addItem(NSMenuItem(title: "Rotate Left", action: #selector(rotateLeftAction), keyEquivalent: ""))
 menu.addItem(NSMenuItem.separator())
 menu.addItem(NSMenuItem(title: "Upload to Cloud", action: #selector(uploadAction), keyEquivalent: ""))
+menu.addItem(NSMenuItem(title: "Share...", action: #selector(shareAction), keyEquivalent: ""))
 menu.addItem(NSMenuItem(title: "Quick Look", action: #selector(quickLookAction), keyEquivalent: ""))
 menu.addItem(NSMenuItem(title: "Show in Finder", action: #selector(revealAction), keyEquivalent: ""))
 menu.addItem(NSMenuItem.separator())
@@ -119,6 +120,7 @@ if sp.runModal() == .OK, let url = sp.url { _ = writePNG(img, to: url); Toast.sh
 @objc private func pinAction() { PinStore.pin(fileURL); Toast.show("Pinned") }
 @objc private func annotateAction() { if let img = image { onAnnotate?(img) }; closeAction() }
 @objc private func uploadAction() { if let url = fileURL { onUpload?(url) } }
+@objc private func shareAction() { if let url = fileURL { Task { @MainActor in ShareHelper.present(urls: [url]) } } }
 @objc private func closeAction() { panel?.orderOut(nil); panel = nil }
 @objc private func revealAction() { if let url = fileURL { NSWorkspace.shared.activateFileViewerSelecting([url]) } }
 @objc private func quickLookAction() { if let url = fileURL { NSWorkspace.shared.open(url) } }

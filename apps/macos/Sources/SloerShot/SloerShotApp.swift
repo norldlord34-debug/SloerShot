@@ -162,6 +162,15 @@ Text("10 seconds").tag(10)
 
  Divider()
  Button("Open Editor") { openWindow(id: "editor") }
+Button("Combine Images...") {
+let panel = NSOpenPanel()
+panel.allowedContentTypes = [.png, .jpeg, .image]
+panel.allowsMultipleSelection = true
+if panel.runModal() == .OK, !panel.urls.isEmpty, let img = CombineImages.combine(urls: panel.urls) {
+model.openEditor(with: img)
+openWindow(id: "editor")
+}
+}
 Button("Open Image...") {
 let panel = NSOpenPanel()
 panel.allowedContentTypes = [.png, .jpeg, .image]

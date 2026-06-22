@@ -53,7 +53,10 @@ p.contentView = content
 if let scr = NSScreen.main { let f = scr.visibleFrame; p.setFrameOrigin(NSPoint(x: f.midX - width / 2, y: f.maxY - height - 12)) }
 p.orderFrontRegardless()
 panel = p
-let t = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in Task { @MainActor in self?.tick() } }
+let t = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+guard let self else { return }
+Task { @MainActor in self.tick() }
+}
 RunLoop.main.add(t, forMode: .common)
 timer = t
 }

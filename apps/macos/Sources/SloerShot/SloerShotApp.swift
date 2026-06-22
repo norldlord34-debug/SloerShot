@@ -12,6 +12,7 @@ var lastImage: CGImage?
 var pins: [PinPanel] = []
 var recorder: RecordingEngine?
 @Published var isRecording = false
+var editorOpener: (() -> Void)?
 
  @discardableResult
  func captureFullscreen() async -> Bool {
@@ -19,7 +20,7 @@ var recorder: RecordingEngine?
  do {
  await applyDelay()
 let image = try await Capture.captureFullscreen()
- openEditor(with: image)
+ showQAO(image)
  return true
  } catch {
  lastError = String(describing: error)
@@ -35,7 +36,7 @@ let image = try await Capture.captureFullscreen()
 let frozen = try await Capture.captureFullscreen()
  guard let selection = await SelectionOverlay.present(image: frozen) else { return false }
  guard let cropped = Capture.crop(frozen, to: selection) else { return false }
- openEditor(with: cropped)
+ showQAO(cropped)
  return true
  } catch {
  lastError = String(describing: error)
@@ -70,20 +71,24 @@ struct MenuContent: View {
 
  var body: some View {
  Button("Capture Area") {
- Task { if await model.captureArea() { openWindow(id: "editor") } }
+ model.editorOpener = { openWindow(id: "editor") }
+Task { await model.captureArea() }
  }
  .keyboardShortcut("4", modifiers: [.command, .shift])
 
  Button("Capture Fullscreen") {
- Task { if await model.captureFullscreen() { openWindow(id: "editor") } }
+ model.editorOpener = { openWindow(id: "editor") }
+Task { await model.captureFullscreen() }
  }
  .keyboardShortcut("9", modifiers: [.command, .shift])
 Button("Capture Window") {
-Task { if await model.captureWindow() { openWindow(id: "editor") } }
+model.editorOpener = { openWindow(id: "editor") }
+Task { await model.captureWindow() }
 }
 .keyboardShortcut("5", modifiers: [.command, .shift])
 Button("Scroll Capture (window)") {
-Task { if await model.scrollCapture() { openWindow(id: "editor") } }
+model.editorOpener = { openWindow(id: "editor") }
+Task { await model.scrollCapture() }
 }
 .keyboardShortcut("6", modifiers: [.command, .shift])
 if model.isRecording {

@@ -113,7 +113,7 @@ let mine = NSRunningApplication.current.processIdentifier
 let windows = content.windows.filter { $0.isOnScreen && $0.owningApplication?.processID != mine && $0.frame.width > 40 && $0.frame.height > 40 }
 guard let win = windows.first else { lastError = "No capturable window found"; return false }
 let image = try await Capture.captureWindow(win)
-openEditor(with: image)
+showQAO(image)
 return true
 } catch {
 lastError = String(describing: error)

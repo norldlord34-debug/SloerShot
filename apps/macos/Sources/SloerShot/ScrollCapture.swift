@@ -88,7 +88,7 @@ frames.append(img)
 if i < 5 { try? await Task.sleep(nanoseconds: 1_200_000_000) }
 }
 guard let stitched = ScrollStitch.stitch(frames) else { lastError = "Stitch failed"; return false }
-openEditor(with: stitched)
+showQAO(stitched)
 Toast.show("Scrolling capture stitched")
 return true
 } catch {

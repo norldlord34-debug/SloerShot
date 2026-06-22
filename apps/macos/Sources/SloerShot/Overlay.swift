@@ -64,6 +64,7 @@ struct SelectionView: View {
  let scaleY: CGFloat
  let onComplete: (CGRect?) -> Void
  @State private var aspect: Double = 0
+@State private var hover: CGPoint?
 @State private var startPt: CGPoint?
  @State private var endPt: CGPoint?
 
@@ -75,7 +76,44 @@ if aspect > 0 { h = w / aspect }
 return CGRect(x: x, y: y, width: w, height: h)
  }
 
- private var aspectBar: some View {
+ private var cursorOverlay: some View {
+ZStack {
+if let p = endPt ?? hover {
+Path { path in
+path.move(to: CGPoint(x: p.x, y: 0)); path.addLine(to: CGPoint(x: p.x, y: viewSize.height))
+path.move(to: CGPoint(x: 0, y: p.y)); path.addLine(to: CGPoint(x: viewSize.width, y: p.y))
+}.stroke(Color.white.opacity(0.45), lineWidth: 1)
+loupe(at: p)
+}
+}
+.frame(width: viewSize.width, height: viewSize.height)
+.allowsHitTesting(false)
+}
+private func loupe(at p: CGPoint) -> some View {
+let size: CGFloat = 120
+let srcPx: CGFloat = 15
+let ixc = p.x * scaleX, iyc = p.y * scaleY
+let rect = CGRect(x: ixc - srcPx / 2, y: iyc - srcPx / 2, width: srcPx, height: srcPx).integral
+let cropped = image.cropping(to: rect)
+var lx = p.x + 72, ly = p.y + 72
+if lx + size / 2 > viewSize.width { lx = p.x - 72 }
+if ly + size / 2 > viewSize.height { ly = p.y - 72 }
+return VStack(spacing: 4) {
+Group {
+if let c = cropped {
+Image(decorative: c, scale: 1, orientation: .up).resizable().interpolation(.none).frame(width: size, height: size)
+} else {
+Color.black.frame(width: size, height: size)
+}
+}
+.clipShape(RoundedRectangle(cornerRadius: 10))
+.overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white, lineWidth: 2))
+.overlay(Rectangle().stroke(Color.white.opacity(0.7), lineWidth: 1).frame(width: size / srcPx, height: size / srcPx))
+Text("\(Int(ixc)), \(Int(iyc))").font(.system(size: 11, design: .monospaced)).foregroundColor(.white).padding(.horizontal, 6).padding(.vertical, 2).background(Color.black.opacity(0.7)).cornerRadius(4)
+}
+.position(x: lx, y: ly)
+}
+private var aspectBar: some View {
 HStack(spacing: 8) {
 aspectButton("Free", 0)
 aspectButton("1:1", 1)
@@ -111,6 +149,13 @@ var body: some View {
  }
  }
  .overlay(alignment: .top) { aspectBar }
+.overlay { cursorOverlay }
+.onContinuousHover(coordinateSpace: .local) { phase in
+switch phase {
+case .active(let loc): hover = loc
+case .ended: hover = nil
+}
+}
 .contentShape(Rectangle())
  .gesture(
  DragGesture(minimumDistance: 0)

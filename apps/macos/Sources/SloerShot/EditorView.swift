@@ -117,6 +117,18 @@ if ShotCore.fxApply(inPath: tin.path, outPath: tout.path, opJson: json) == 0, le
 cancelCrop()
 }
 func cancelCrop() { cropMode = false; cropRect = .null }
+/// Scale the flattened image by a factor via core fx resize (preserves annotations).
+func resize(scale: Double) {
+guard scale > 0, let src = flattenedImage() else { return }
+let w = max(1, Int((imageSize.width * scale).rounded()))
+let h = max(1, Int((imageSize.height * scale).rounded()))
+let dir = FileManager.default.temporaryDirectory
+let tin = dir.appendingPathComponent("ss-resize-in.png")
+let tout = dir.appendingPathComponent("ss-resize-out.png")
+guard writePNG(src, to: tin) else { return }
+let json = "{\"op\":\"resize\",\"w\":\(w),\"h\":\(h)}"
+if ShotCore.fxApply(inPath: tin.path, outPath: tout.path, opJson: json) == 0, let img = loadCGImage(tout) { replaceImage(img) }
+}
 /// Apply a path-based core image op (sharpen, white balance, auto color, deskew) destructively.
 func applyPathOp(_ key: String) {
 guard let bg = background else { return }
@@ -361,6 +373,14 @@ Button { PinStore.pin(model.flattenedURL()) } label: { Image(systemName: "pin") 
 .help("Pin to screen")
 Button { if let url = model.flattenedURL() { ShareHelper.present(urls: [url]) } } label: { Image(systemName: "square.and.arrow.up") }
 .help("Share")
+Menu("Resize") {
+Button("25%") { model.resize(scale: 0.25) }
+Button("50%") { model.resize(scale: 0.5) }
+Button("75%") { model.resize(scale: 0.75) }
+Button("150%") { model.resize(scale: 1.5) }
+Button("200%") { model.resize(scale: 2.0) }
+}
+.frame(width: 86)
 Menu("Save As") {
 Button("PNG") { saveAs("png", .png) }
 Button("JPEG") { saveAs("jpg", .jpeg) }

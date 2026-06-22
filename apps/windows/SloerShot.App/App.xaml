@@ -1,4 +1,4 @@
-﻿<Application
+<Application
     x:Class="SloerShot.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
@@ -7,6 +7,13 @@
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
             </ResourceDictionary.MergedDictionaries>
+<Color x:Key="SystemAccentColor">#FF3D7EFF</Color>
+<Color x:Key="SystemAccentColorLight1">#FF5B92FF</Color>
+<Color x:Key="SystemAccentColorLight2">#FF79A6FF</Color>
+<Color x:Key="SystemAccentColorLight3">#FF98BAFF</Color>
+<Color x:Key="SystemAccentColorDark1">#FF2C6BE0</Color>
+<Color x:Key="SystemAccentColorDark2">#FF1F57C0</Color>
+<Color x:Key="SystemAccentColorDark3">#FF14439F</Color>
             <SolidColorBrush x:Key="AppBgBrush" Color="#16161A" />
             <SolidColorBrush x:Key="PanelBgBrush" Color="#1F1F25" />
             <SolidColorBrush x:Key="StageBgBrush" Color="#101013" />

@@ -28,4 +28,22 @@ public sealed class CloudClient
  var json = await resp.Content.ReadAsStringAsync();
  return ShotCore.ShareLink(_baseUrl, json);
  }
+ // Upload the image bytes to /v1/upload and return the hosted absolute URL.
+ public async Task<string?> UploadImageAsync(string filePath)
+ {
+ byte[] bytes;
+ try { bytes = await System.IO.File.ReadAllBytesAsync(filePath); } catch { return null; }
+ using var content = new ByteArrayContent(bytes);
+ content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
+ var resp = await _http.PostAsync(_baseUrl + "/v1/upload", content);
+ if (!resp.IsSuccessStatusCode) return null;
+ var json = await resp.Content.ReadAsStringAsync();
+ try
+ {
+ using var doc = System.Text.Json.JsonDocument.Parse(json);
+ if (doc.RootElement.TryGetProperty("url", out var u)) return u.GetString();
+ }
+ catch { }
+ return null;
+ }
 }

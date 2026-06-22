@@ -583,12 +583,12 @@ try
 {
 if (_lastCapturePath == null) { StatusText.Text = "Capture something first."; return; }
 if (string.IsNullOrWhiteSpace(_settings.ServerUrl)) { StatusText.Text = "Set a share server URL in Settings first."; return; }
-StatusText.Text = "Creating share link...";
+StatusText.Text = "Uploading to cloud...";
 var client = new CloudClient(_settings.ServerUrl);
-var link = await client.CreateShareLinkAsync(null, 0, 0);
-if (string.IsNullOrEmpty(link)) { StatusText.Text = "Share failed (check server URL / backend)."; return; }
+var link = await client.UploadImageAsync(_lastCapturePath);
+if (string.IsNullOrEmpty(link)) { StatusText.Text = "Upload failed (check server URL / backend)."; return; }
 var dp = new DataPackage(); dp.SetText(link); Clipboard.SetContent(dp);
-StatusText.Text = "Share link copied: " + link;
+StatusText.Text = "Uploaded - link copied: " + link;
 }
 catch (Exception ex) { StatusText.Text = "Share failed: " + ex.Message; }
 }

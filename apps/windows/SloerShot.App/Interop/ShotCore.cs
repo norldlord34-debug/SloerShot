@@ -273,4 +273,7 @@ public static extern int Deskew(string inPath, string outPath);
  [DllImport(Lib, EntryPoint = "shotcore_table_markdown", CharSet = CharSet.Ansi)]
  private static extern IntPtr TableMarkdownRaw(string ocrJson, double colTolerance);
  public static string? TableMarkdown(string ocrJson, double colTolerance) => TakeString(TableMarkdownRaw(ocrJson, colTolerance));
+ [DllImport(Lib, EntryPoint = "shotcore_combine_stack_vertical", CharSet = CharSet.Ansi)]
+ private static extern IntPtr CombineStackVerticalRaw(string sizesJson, uint gap);
+ public static string? CombineStackVertical(string sizesJson, uint gap) => TakeString(CombineStackVerticalRaw(sizesJson, gap));
 }

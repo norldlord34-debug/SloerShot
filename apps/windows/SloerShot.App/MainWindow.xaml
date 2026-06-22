@@ -54,6 +54,8 @@ Title="SloerShot">
 <MenuFlyoutItem Text="Scrolling Capture" Tag="scroll" Click="OnCaptureOption" />
 <MenuFlyoutSeparator />
 <MenuFlyoutItem x:Name="RecordMenuItem" Text="Start Recording" Click="OnToggleRecording" />
+<MenuFlyoutSeparator />
+<MenuFlyoutItem Text="Combine Images..." Click="OnCombineImages" />
 </MenuFlyout>
 </DropDownButton.Flyout>
 </DropDownButton>

@@ -278,6 +278,47 @@ private async System.Threading.Tasks.Task StopRecordingAsync()
  }
  else { StatusText.Text = "GIF encode failed (" + rc + ")"; }
 }
+private async void OnCombineImages(object sender, RoutedEventArgs e)
+{
+ try
+ {
+ var picker = new Windows.Storage.Pickers.FileOpenPicker();
+ picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.PicturesLibrary;
+ picker.FileTypeFilter.Add(".png"); picker.FileTypeFilter.Add(".jpg"); picker.FileTypeFilter.Add(".jpeg");
+ var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+ WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+ var files = await picker.PickMultipleFilesAsync();
+ if (files == null || files.Count == 0) { StatusText.Text = "Combine cancelled."; return; }
+ var bmps = new List<System.Drawing.Bitmap>();
+ foreach (var ff in files) { try { bmps.Add(new System.Drawing.Bitmap(ff.Path)); } catch { } }
+ if (bmps.Count == 0) { StatusText.Text = "No images loaded."; return; }
+ int n = bmps.Count;
+ var sizesJson = "[" + string.Join(",", bmps.Select(b => "[" + b.Width + "," + b.Height + "]")) + "]";
+ var layoutJson = ShotCore.CombineStackVertical(sizesJson, 16);
+ if (string.IsNullOrEmpty(layoutJson)) { foreach (var b in bmps) b.Dispose(); StatusText.Text = "Combine failed."; return; }
+ using var docj = System.Text.Json.JsonDocument.Parse(layoutJson);
+ int cw = docj.RootElement.GetProperty("canvas_w").GetInt32();
+ int ch = docj.RootElement.GetProperty("canvas_h").GetInt32();
+ if (cw <= 0 || ch <= 0) { foreach (var b in bmps) b.Dispose(); StatusText.Text = "Combine failed."; return; }
+ var outPath = System.IO.Path.Combine(CapturesFolder(), "combined-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".png");
+ using (var canvas = new System.Drawing.Bitmap(cw, ch, System.Drawing.Imaging.PixelFormat.Format32bppArgb))
+ using (var g = System.Drawing.Graphics.FromImage(canvas))
+ {
+ g.Clear(System.Drawing.Color.Transparent);
+ foreach (var pl in docj.RootElement.GetProperty("placements").EnumerateArray())
+ {
+ int idx = pl.GetProperty("image").GetInt32();
+ int x = pl.GetProperty("x").GetInt32();
+ int y = pl.GetProperty("y").GetInt32();
+ if (idx >= 0 && idx < bmps.Count) g.DrawImage(bmps[idx], x, y, bmps[idx].Width, bmps[idx].Height);
+ }
+ canvas.Save(outPath, System.Drawing.Imaging.ImageFormat.Png);
+ }
+ foreach (var b in bmps) b.Dispose();
+ FinishCapture(outPath, cw, ch, "Combined " + n + " images");
+ }
+ catch (Exception ex) { StatusText.Text = "Combine failed: " + ex.Message; }
+}
 private void FinishCapture(string path, int w, int h, string status)
 {
 _suppressSelection = true;

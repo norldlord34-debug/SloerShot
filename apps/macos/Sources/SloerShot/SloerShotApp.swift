@@ -53,6 +53,18 @@ lastImage = image
 @main
 struct SloerShotApp: App {
  @StateObject private var model = AppModel()
+ init() {
+ UserDefaults.standard.register(defaults: [
+ "ss.qaoPosition": "Bottom Left",
+ "ss.pinRounded": true,
+ "ss.pinShadow": true,
+ "ss.pinBorder": true,
+ "ss.scShowOverlay": true,
+ "ss.scCopy": false,
+ "ss.scSave": false,
+ "ss.exportLocation": "Desktop"
+ ])
+ }
 
  var body: some Scene {
  MenuBarExtra("SloerShot", systemImage: "camera.viewfinder") {

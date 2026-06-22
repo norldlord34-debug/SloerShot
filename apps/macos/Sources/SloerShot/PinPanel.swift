@@ -16,6 +16,11 @@ final class PinPanel: NSPanel {
  imageView.image = image
  imageView.imageScaling = .scaleProportionallyUpOrDown
  self.contentView = imageView
+imageView.wantsLayer = true
+let pd = UserDefaults.standard
+if pd.bool(forKey: "ss.pinRounded") { imageView.layer?.cornerRadius = 10; imageView.layer?.masksToBounds = true }
+self.hasShadow = pd.bool(forKey: "ss.pinShadow")
+if pd.bool(forKey: "ss.pinBorder") { imageView.layer?.borderWidth = 1; imageView.layer?.borderColor = NSColor.white.withAlphaComponent(0.6).cgColor }
  }
 
  // CleanShot pin opacity slider.

@@ -81,7 +81,14 @@ p.isFloatingPanel = true
 p.hasShadow = true
 p.backgroundColor = .clear
 p.contentView = content
-if let scr = NSScreen.main { let f = scr.visibleFrame; p.setFrameOrigin(NSPoint(x: f.minX + 24, y: f.minY + 24)) }
+if let scr = NSScreen.main {
+let f = scr.visibleFrame
+let pos = UserDefaults.standard.string(forKey: "ss.qaoPosition") ?? "Bottom Left"
+let pw = content.frame.width, ph = content.frame.height
+let x = pos.contains("Right") ? f.maxX - pw - 24 : f.minX + 24
+let y = pos.contains("Top") ? f.maxY - ph - 24 : f.minY + 24
+p.setFrameOrigin(NSPoint(x: x, y: y))
+}
 p.orderFrontRegardless()
 panel = p
 }
@@ -139,6 +146,19 @@ Toast.show("Link copied: " + link)
 } else { Toast.show("Upload failed") }
 }
 }
-qao.present(image: image)
+let sd = UserDefaults.standard
+if sd.bool(forKey: "ss.scCopy") { let pb = NSPasteboard.general; pb.clearContents(); pb.writeObjects([NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))]) }
+if sd.bool(forKey: "ss.scSave") { saveCaptureToExportLocation(image) }
+if sd.bool(forKey: "ss.scShowOverlay") { qao.present(image: image) }
 }
+}
+
+
+/// Save a capture to the configured export location (Desktop/Pictures/Downloads).
+func saveCaptureToExportLocation(_ image: CGImage) {
+let loc = UserDefaults.standard.string(forKey: "ss.exportLocation") ?? "Desktop"
+let dir: FileManager.SearchPathDirectory = loc == "Pictures" ? .picturesDirectory : (loc == "Downloads" ? .downloadsDirectory : .desktopDirectory)
+let base = FileManager.default.urls(for: dir, in: .userDomainMask).first ?? FileManager.default.temporaryDirectory
+let url = base.appendingPathComponent("SloerShot-\(Int(Date().timeIntervalSince1970)).png")
+_ = writePNG(image, to: url)
 }

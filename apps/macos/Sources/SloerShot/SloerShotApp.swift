@@ -68,6 +68,7 @@ struct SloerShotApp: App {
  "ss.recHighlightClicks": true,
  "ss.recShowKeystrokes": false,
  "ss.recCamera": false,
+ "ss.scrollFrames": 8,
  "ss.exportLocation": "Desktop"
  ])
  }

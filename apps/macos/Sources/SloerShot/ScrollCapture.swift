@@ -24,6 +24,15 @@ sig[y] = s
 }
 return sig
 }
+static func rgba(_ img: CGImage) -> [UInt8]? {
+let w = img.width, h = img.height
+guard w > 0, h > 0, let cs = CGColorSpace(name: CGColorSpace.sRGB),
+let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4, space: cs, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+ctx.draw(img, in: CGRect(x: 0, y: 0, width: w, height: h))
+guard let data = ctx.data else { return nil }
+let ptr = data.bindMemory(to: UInt8.self, capacity: w * 4 * h)
+return Array(UnsafeBufferPointer(start: ptr, count: w * 4 * h))
+}
 static func bestOverlap(_ a: [Int], _ b: [Int]) -> Int {
 let ha = a.count, hb = b.count
 let maxOv = min(ha, hb) - 1
@@ -78,14 +87,27 @@ func scrollCapture() async -> Bool {
 do {
 let content = try await Capture.shareableContent()
 let mine = NSRunningApplication.current.processIdentifier
-let candidates = content.windows.filter { $0.isOnScreen && $0.owningApplication?.processID != mine && $0.frame.width > 80 && $0.frame.height > 80 }
+let candidates = content.windows.filter { $0.isOnScreen && $0.owningApplication?.processID != mine && $0.frame.width > 80 && $0.frame.height > 80 }.sorted { ($0.frame.width * $0.frame.height) > ($1.frame.width * $1.frame.height) }
 guard let win = candidates.first else { lastError = "No window to scroll-capture"; return false }
-Toast.show("Scroll the window now - capturing 6 frames")
+let target = max(2, UserDefaults.standard.integer(forKey: "ss.scrollFrames"))
+Toast.show("Scroll the window slowly - capturing up to \(target) frames")
 var frames: [CGImage] = []
-for i in 0..<6 {
+var lastHash: UInt64 = 0
+var attempts = 0
+while frames.count < target && attempts < target * 4 {
+attempts += 1
 let img = try await Capture.captureWindow(win)
+if let bytes = ScrollStitch.rgba(img) {
+let hsh = ShotCore.dHash(rgba: bytes, width: UInt32(img.width), height: UInt32(img.height))
+if frames.isEmpty || ShotCore.hamming(lastHash, hsh) >= 3 {
 frames.append(img)
-if i < 5 { try? await Task.sleep(nanoseconds: 1_200_000_000) }
+lastHash = hsh
+Toast.show("Captured \(frames.count)/\(target)")
+}
+} else {
+frames.append(img)
+}
+try? await Task.sleep(nanoseconds: 700_000_000)
 }
 guard let stitched = ScrollStitch.stitch(frames) else { lastError = "Stitch failed"; return false }
 showQAO(stitched)

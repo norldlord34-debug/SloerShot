@@ -45,6 +45,7 @@ struct SettingsView: View {
 @AppStorage("ss.crosshairMode") private var crosshairMode = "Disabled"
 @AppStorage("ss.showMagnifier") private var showMagnifier = false
 @AppStorage("ss.selfTimer") private var selfTimer = 5
+@AppStorage("ss.scrollFrames") private var scrollFrames = 8
 @AppStorage("ss.showCursor") private var showCursor = true
 @AppStorage("ss.inverseArrow") private var inverseArrow = false
 @AppStorage("ss.smoothPencil") private var smoothPencil = true
@@ -169,6 +170,7 @@ Picker("Crosshair mode", selection: $crosshairMode) { Text("Disabled").tag("Disa
 Toggle("Show magnifier", isOn: $showMagnifier)
 Picker("Self-Timer interval", selection: $selfTimer) { Text("None").tag(0); Text("3 seconds").tag(3); Text("5 seconds").tag(5); Text("10 seconds").tag(10) }
 Toggle("Show cursor on screenshots", isOn: $showCursor)
+Picker("Scrolling capture frames", selection: $scrollFrames) { Text("4").tag(4); Text("6").tag(6); Text("8").tag(8); Text("12").tag(12) }
 }
 .formStyle(.grouped)
 }

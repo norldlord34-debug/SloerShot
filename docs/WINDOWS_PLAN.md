@@ -53,3 +53,19 @@ P1 tray -> P2 recording -> P3 style -> P4 background panel -> P5 OCR window -> P
 ## Notes
 - Local verification: dotnet 9 SDK present; dotnet build of SloerShot.App.csproj is the fast loop; copies target/release/shotcore.dll.
 - New core FFI (if any) appended to ffi.rs, synced to both headers, dll rebuilt; the same core already powers macOS.
+
+
+## Progress log (live)
+Shipped + CI-green (cargo release + dotnet Release on Windows), each also built locally (dotnet build, 0/0):
+- Phase 1: system tray (H.NotifyIcon) + quick-capture menu + run-in-background (close hides to tray).
+- Phase 2: screen recording wired end-to-end (Record/Stop in menu + tray + elapsed) -> animated GIF via new core streaming FFI shotcore_encode_gif_dir (downscaled, bounded memory).
+- Phase 3: rich annotation style (set_style_json: fill, opacity, width, arrow styles, 7 text styles, smart highlighter).
+- Phase 4: full Background panel (gradient presets, color, transparent, padding/corners/shadow, ratio + 9-point alignment via beautify_framed).
+- Phase 5: Capture Text (OCR) dialog (review/edit, copy, save .txt, extract links, table to CSV/Markdown).
+- Phase 6: real cloud upload (POST /v1/upload, copy hosted link).
+- Phase 7: Combine Images (pick several, stack via combine_stack_vertical, GDI composite, open in editor).
+- Phase 8: Quick Access Overlay drag-out (drag the capture thumbnail to any folder/app).
+- Phase 9: Save As HEIC/TIFF/BMP via WinRT BitmapEncoder (plus PNG/JPG; WebP has no WinRT encoder).
+- Phase 10: per-mode global hotkeys (Ctrl+Shift+4/5/6 Area/Window/Fullscreen, Ctrl+Shift+2 Record); tray is the All-In-One launcher.
+Local toolchain: dotnet 9 SDK present -> dotnet build is the fast verify loop (real, unlike macOS which is CI-only).
+Remaining/ideas: MP4 recording (Media Foundation), live background preview, ShareX-style upload destinations, scrolling-capture polish.

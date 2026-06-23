@@ -109,4 +109,43 @@ public sealed class UploaderEngine
  _ => "application/octet-stream",
  };
  }
+
+ // Run a URL shortener (ShareX custom uploader with {input} = the long URL). No file payload.
+ public async Task<UploadOutcome> ShortenUrlAsync(string configJson, string longUrl)
+ {
+ string? planJson = ShotCore.CustomUploaderBuildPlan(configJson, longUrl, "");
+ if (string.IsNullOrEmpty(planJson)) return UploadOutcome.Fail("Invalid shortener config");
+ RequestPlan? plan;
+ try { plan = JsonSerializer.Deserialize<RequestPlan>(planJson); } catch { plan = null; }
+ if (plan == null || string.IsNullOrWhiteSpace(plan.Url)) return UploadOutcome.Fail("Could not build request");
+ using var req = new HttpRequestMessage(new HttpMethod(string.IsNullOrEmpty(plan.Method) ? "GET" : plan.Method), plan.Url);
+ switch (plan.Body)
+ {
+ case "FormURLEncoded": req.Content = new FormUrlEncodedContent(plan.Arguments); break;
+ case "JSON": req.Content = new StringContent(plan.Data ?? "", Encoding.UTF8, "application/json"); break;
+ case "XML": req.Content = new StringContent(plan.Data ?? "", Encoding.UTF8, "application/xml"); break;
+ default: break;
+ }
+ foreach (var h in plan.Headers)
+ {
+ if (!req.Headers.TryAddWithoutValidation(h.Key, h.Value) && req.Content != null)
+ req.Content.Headers.TryAddWithoutValidation(h.Key, h.Value);
+ }
+ HttpResponseMessage resp;
+ try { resp = await _http.SendAsync(req); }
+ catch (Exception ex) { return UploadOutcome.Fail("Network error: " + ex.Message); }
+ string respBody = await resp.Content.ReadAsStringAsync();
+ if (!resp.IsSuccessStatusCode) return UploadOutcome.Fail("HTTP " + (int)resp.StatusCode + ": " + Trunc(respBody, 200));
+ var headers = new Dictionary<string, string>();
+ foreach (var h in resp.Headers) headers[h.Key] = string.Join(",", h.Value);
+ foreach (var h in resp.Content.Headers) headers[h.Key] = string.Join(",", h.Value);
+ string headersJson = JsonSerializer.Serialize(headers);
+ string? linksJson = ShotCore.CustomUploaderResolveResponse(configJson, respBody, headersJson, longUrl, "");
+ ResponseLinks? links = null;
+ try { if (!string.IsNullOrEmpty(linksJson)) links = JsonSerializer.Deserialize<ResponseLinks>(linksJson); } catch { }
+ string shortUrl = (links?.Url ?? "").Trim();
+ if (string.IsNullOrWhiteSpace(shortUrl)) shortUrl = respBody.Trim();
+ if (string.IsNullOrWhiteSpace(shortUrl) || !shortUrl.StartsWith("http")) return UploadOutcome.Fail("Shortener error: " + Trunc(respBody, 120));
+ return UploadOutcome.Ok(shortUrl, "", "");
+ }
 }

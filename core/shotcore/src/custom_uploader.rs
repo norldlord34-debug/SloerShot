@@ -396,4 +396,17 @@ mod tests {
  assert_eq!(links.url, "https://i.imgur.com/x.png");
  assert_eq!(links.deletion_url, "https://imgur.com/delete/DEL123");
  }
+
+ #[test]
+ fn shortener_isgd_plan() {
+ let cfg_json = "{\"RequestMethod\":\"GET\",\"RequestURL\":\"https://is.gd/create.php\",\"Parameters\":{\"format\":\"simple\",\"url\":\"{input}\"}}";
+ let cfg: CustomUploaderConfig = serde_json::from_str(cfg_json).unwrap();
+ let plan = build_request_plan(&cfg, "https://h.test/f/abc.png", "");
+ assert_eq!(plan.method, "GET");
+ assert!(plan.url.starts_with("https://is.gd/create.php?"));
+ assert!(plan.url.contains("format=simple"));
+ assert!(plan.url.contains("url=https%3A%2F%2Fh.test%2Ff%2Fabc.png"));
+ let links = resolve_response(&cfg, "https://is.gd/abcd", &BTreeMap::new(), "https://h.test/f/abc.png", "");
+ assert_eq!(links.url, "https://is.gd/abcd");
+ }
 }

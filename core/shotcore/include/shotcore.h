@@ -48,6 +48,8 @@ char *shotcore_extract_links(const char *text);
 char *shotcore_palette_eyedrop(const uint8_t *rgba, uintptr_t len, uint32_t width, uint32_t height, uint32_t x, uint32_t y);
 char *shotcore_snap_object(const uint8_t *rgba, uintptr_t len, uint32_t width, uint32_t height, double x, double y, double w, double h, uint8_t tolerance);
 char *shotcore_qr_encode(const char *text);
+/* Encode text into a QR PNG at out_path (scale = px per module, quiet = quiet-zone modules). Returns 0 on success. */
+int shotcore_qr_encode_png(const char *text, uint32_t scale, uint32_t quiet, const char *out_path);
 char *shotcore_qr_decode(const uint8_t *rgba, uintptr_t len, uint32_t width, uint32_t height);
 char *shotcore_record_elapsed(uint64_t ms);
 uint64_t shotcore_record_frame_count(uint32_t fps, uint64_t duration_ms);

@@ -59,3 +59,10 @@ public static class BuiltInDestinations
  };
  }
 }
+
+// URL shorteners modeled as ShareX custom uploaders (GET with {input} = the long URL).
+public static class BuiltInShorteners
+{
+ public const string Isgd = "{\"RequestMethod\":\"GET\",\"RequestURL\":\"https://is.gd/create.php\",\"Parameters\":{\"format\":\"simple\",\"url\":\"{input}\"}}";
+ public const string TinyUrl = "{\"RequestMethod\":\"GET\",\"RequestURL\":\"https://tinyurl.com/api-create.php\",\"Parameters\":{\"url\":\"{input}\"}}";
+}

@@ -23,9 +23,27 @@ public string ServerUrl { get; set; } = "";
 public List<UploadDestination> Destinations { get; set; } = new();
 public string ActiveDestinationId { get; set; } = "";
 public string ImgurClientId { get; set; } = "";
+public bool AfterUploadCopyUrl { get; set; } = true;
+public bool AfterUploadOpenUrl { get; set; } = false;
+public bool AfterUploadShowQr { get; set; } = false;
+public string UrlShortener { get; set; } = "none";
+public string CustomShortenerConfig { get; set; } = "";
 public string ResolveDestinationConfig(UploadDestination d)
 {
-var cfg = d?.ConfigJson ?? "";
+return ApplyTokens(d?.ConfigJson ?? "");
+}
+public string ShortenerConfig()
+{
+switch (UrlShortener)
+{
+case "isgd": return BuiltInShorteners.Isgd;
+case "tinyurl": return BuiltInShorteners.TinyUrl;
+case "custom": return ApplyTokens(CustomShortenerConfig ?? "");
+default: return "";
+}
+}
+private string ApplyTokens(string cfg)
+{
 var server = ServerUrl ?? "";
 while (server.EndsWith("/")) server = server.Substring(0, server.Length - 1);
 cfg = cfg.Replace(BuiltInDestinations.ServerToken, server);

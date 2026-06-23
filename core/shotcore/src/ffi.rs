@@ -2245,3 +2245,37 @@ mod custom_uploader_ffi_tests {
  assert!(j.contains("https://cdn.test/x.png"));
  }
 }
+
+/// Encode text into a QR code and save it as a PNG at out_path. scale = pixels per module,
+/// quiet = quiet-zone width in modules. Returns OK or an error code.
+#[no_mangle]
+pub extern "C" fn shotcore_qr_encode_png(text: *const c_char, scale: u32, quiet: u32, out_path: *const c_char) -> c_int {
+ let t = match unsafe { cstr_to_string(text) } { Some(s) => s, None => return ERR_ARG };
+ let outp = match unsafe { cstr_to_string(out_path) } { Some(s) => s, None => return ERR_ARG };
+ match crate::qrcode::encode(&t) {
+ Ok((_, grid)) => {
+ let img = crate::qrcode::render(&grid, scale.max(1), quiet);
+ match img.save(&outp) { Ok(()) => OK, Err(_) => ERR_IMAGE }
+ }
+ Err(_) => ERR_IMAGE,
+ }
+}
+
+#[cfg(test)]
+mod qr_png_ffi_tests {
+ use super::*;
+ use std::ffi::CString;
+ #[test]
+ fn qr_encode_png_writes_file() {
+ let p = std::env::temp_dir().join("shotcore_qr_ffi_test.png");
+ let ps = p.to_string_lossy().to_string();
+ let text = CString::new("https://sloer.sh/abc").unwrap();
+ let outc = CString::new(ps.clone()).unwrap();
+ let rc = shotcore_qr_encode_png(text.as_ptr(), 4, 4, outc.as_ptr());
+ assert_eq!(rc, OK);
+ assert!(std::path::Path::new(&ps).exists());
+ let img = image::open(&ps).unwrap();
+ assert!(img.width() > 0 && img.height() > 0);
+ let _ = std::fs::remove_file(&ps);
+ }
+}

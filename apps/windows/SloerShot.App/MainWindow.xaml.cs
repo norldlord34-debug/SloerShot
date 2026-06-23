@@ -32,6 +32,7 @@ public sealed partial class MainWindow : Window
 private readonly AppSettings _settings;
 private readonly UploaderEngine _uploader = new();
 private string _lastUploadDeletionUrl = "";
+private string _lastUploadUrl = "";
 private HotkeyService? _hotkey;
 private DispatcherTimer? _toastTimer;
 private readonly List<PinWindow> _pins = new();
@@ -661,8 +662,22 @@ StatusText.Text = "Uploading to " + dest.Name + "...";
 var outcome = await _uploader.UploadFileAsync(cfg, _lastCapturePath);
 if (!outcome.Success) { StatusText.Text = "Upload failed: " + outcome.Error; return; }
 _lastUploadDeletionUrl = outcome.DeletionUrl ?? "";
-var dp = new DataPackage(); dp.SetText(outcome.Url); Clipboard.SetContent(dp);
-StatusText.Text = "Uploaded to " + dest.Name + " - link copied: " + outcome.Url;
+var finalUrl = outcome.Url;
+if (!string.IsNullOrEmpty(_settings.UrlShortener) && _settings.UrlShortener != "none")
+{
+var scfg = _settings.ShortenerConfig();
+if (!string.IsNullOrWhiteSpace(scfg))
+{
+StatusText.Text = "Shortening link...";
+var sres = await _uploader.ShortenUrlAsync(scfg, outcome.Url);
+if (sres.Success && !string.IsNullOrWhiteSpace(sres.Url)) finalUrl = sres.Url;
+}
+}
+_lastUploadUrl = finalUrl;
+if (_settings.AfterUploadCopyUrl) { var dp = new DataPackage(); dp.SetText(finalUrl); Clipboard.SetContent(dp); }
+StatusText.Text = "Uploaded to " + dest.Name + " - " + finalUrl;
+if (_settings.AfterUploadOpenUrl) { try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = finalUrl, UseShellExecute = true }); } catch { } }
+if (_settings.AfterUploadShowQr) { await ShowQrDialogAsync(finalUrl); }
 }
 catch (Exception ex) { StatusText.Text = "Share failed: " + ex.Message; }
 }
@@ -691,6 +706,16 @@ mf.Items.Add(new MenuFlyoutSeparator());
 var manage = new MenuFlyoutItem { Text = "Manage destinations..." };
 manage.Click += async (s, ev) => { await OnManageDestinationsAsync(); };
 mf.Items.Add(manage);
+if (!string.IsNullOrEmpty(_lastUploadUrl))
+{
+mf.Items.Add(new MenuFlyoutSeparator());
+var qr = new MenuFlyoutItem { Text = "QR of last link" };
+qr.Click += async (s, ev) => { await ShowQrDialogAsync(_lastUploadUrl); };
+mf.Items.Add(qr);
+var openLink = new MenuFlyoutItem { Text = "Open last link" };
+openLink.Click += (s, ev) => { try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = _lastUploadUrl, UseShellExecute = true }); } catch { } };
+mf.Items.Add(openLink);
+}
 }
 catch { }
 }
@@ -756,6 +781,40 @@ private static string ExtractName(string json, string fallback)
 {
 try { using var doc = System.Text.Json.JsonDocument.Parse(json); if (doc.RootElement.TryGetProperty("Name", out var n)) { var sv = n.GetString(); if (!string.IsNullOrWhiteSpace(sv)) return sv; } } catch { }
 return System.IO.Path.GetFileNameWithoutExtension(fallback);
+}
+private async Task ShowQrDialogAsync(string text)
+{
+try
+{
+var tmp = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "sloershot-qr-" + Guid.NewGuid().ToString("N") + ".png");
+int rc = await Task.Run(() => ShotCore.QrEncodePng(text, 8, 4, tmp));
+if (rc != 0 || !File.Exists(tmp)) { StatusText.Text = "QR generation failed."; return; }
+var bmp = new BitmapImage();
+using (var fs = File.OpenRead(tmp)) { await bmp.SetSourceAsync(fs.AsRandomAccessStream()); }
+var img = new Image { Source = bmp, Width = 280, Height = 280 };
+var linkText = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, MaxWidth = 300, HorizontalAlignment = HorizontalAlignment.Center };
+var panel = new StackPanel { Spacing = 10, HorizontalAlignment = HorizontalAlignment.Center };
+panel.Children.Add(img);
+panel.Children.Add(linkText);
+var dlg = new ContentDialog { Title = "QR code", Content = panel, PrimaryButtonText = "Save PNG...", SecondaryButtonText = "Copy link", CloseButtonText = "Close", XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+var r = await dlg.ShowAsync();
+if (r == ContentDialogResult.Primary)
+{
+var picker = new Windows.Storage.Pickers.FileSavePicker();
+picker.SuggestedFileName = "qr";
+picker.FileTypeChoices.Add("PNG", new List<string> { ".png" });
+var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+var destFile = await picker.PickSaveFileAsync();
+if (destFile != null) { try { File.Copy(tmp, destFile.Path, true); StatusText.Text = "QR saved."; } catch { } }
+}
+else if (r == ContentDialogResult.Secondary)
+{
+var dp = new DataPackage(); dp.SetText(text); Clipboard.SetContent(dp); StatusText.Text = "Link copied.";
+}
+try { File.Delete(tmp); } catch { }
+}
+catch (Exception ex) { StatusText.Text = "QR error: " + ex.Message; }
 }
 private void OnBgPreset(object sender, RoutedEventArgs e) { var tg = (sender as FrameworkElement)?.Tag as string; if (tg != null) { _bgPreset = tg; _bgType = "gradient"; if (BgTypeCombo != null) BgTypeCombo.SelectedIndex = 0; StatusText.Text = "Gradient: " + tg; } }
 private void OnBgColorSwatch(object sender, RoutedEventArgs e) { var hex = (sender as FrameworkElement)?.Tag as string; if (hex != null && hex.Length >= 6) { try { _bgColor = (Convert.ToByte(hex.Substring(0, 2), 16), Convert.ToByte(hex.Substring(2, 2), 16), Convert.ToByte(hex.Substring(4, 2), 16)); _bgType = "color"; if (BgTypeCombo != null) BgTypeCombo.SelectedIndex = 1; } catch { } } }
@@ -1107,6 +1166,19 @@ var hkToggle = new ToggleSwitch { IsOn = _settings.HotkeyEnabled };
 panel.Children.Add(new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "Global capture hotkey", Description = DescribeHotkey(), HeaderIcon = new FontIcon { Glyph = "\uE765" }, Content = hkToggle });
 var serverBox = new TextBox { Text = _settings.ServerUrl, PlaceholderText = "https://your-server", MinWidth = 240 };
 panel.Children.Add(new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "Share server URL", Description = "Backend base URL for cloud share links", HeaderIcon = new FontIcon { Glyph = "\uE753" }, Content = serverBox });
+var destBtn = new Button { Content = "Manage..." };
+destBtn.Click += async (s, e2) => { await OnManageDestinationsAsync(); };
+panel.Children.Add(new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "Upload destinations", Description = "Imgur, custom .sxcu, SloerShot backend", HeaderIcon = new FontIcon { Glyph = "\uE898" }, Content = destBtn });
+var copyUrlToggle = new ToggleSwitch { IsOn = _settings.AfterUploadCopyUrl };
+panel.Children.Add(new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "Copy URL after upload", HeaderIcon = new FontIcon { Glyph = "\uE8C8" }, Content = copyUrlToggle });
+var openUrlToggle = new ToggleSwitch { IsOn = _settings.AfterUploadOpenUrl };
+panel.Children.Add(new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "Open URL after upload", HeaderIcon = new FontIcon { Glyph = "\uE774" }, Content = openUrlToggle });
+var qrToggle = new ToggleSwitch { IsOn = _settings.AfterUploadShowQr };
+panel.Children.Add(new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "Show QR after upload", HeaderIcon = new FontIcon { Glyph = "\uE8A4" }, Content = qrToggle });
+var shortenCombo = new ComboBox { MinWidth = 160 };
+shortenCombo.Items.Add("None"); shortenCombo.Items.Add("is.gd"); shortenCombo.Items.Add("TinyURL");
+shortenCombo.SelectedIndex = _settings.UrlShortener == "isgd" ? 1 : (_settings.UrlShortener == "tinyurl" ? 2 : 0);
+panel.Children.Add(new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "URL shortener", Description = "Shorten the link after upload", HeaderIcon = new FontIcon { Glyph = "\uE71B" }, Content = shortenCombo });
 var scroll = new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 520 };
 var dialog = new ContentDialog { Title = "Settings", PrimaryButtonText = "Save", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, Content = scroll, XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
 var res = await dialog.ShowAsync();
@@ -1120,6 +1192,10 @@ _settings.AutoCopyToClipboard = copyToggle.IsOn;
 _settings.OpenFolderAfterSave = openToggle.IsOn;
 _settings.HotkeyEnabled = hkToggle.IsOn;
 _settings.ServerUrl = serverBox.Text ?? "";
+_settings.AfterUploadCopyUrl = copyUrlToggle.IsOn;
+_settings.AfterUploadOpenUrl = openUrlToggle.IsOn;
+_settings.AfterUploadShowQr = qrToggle.IsOn;
+_settings.UrlShortener = shortenCombo.SelectedIndex == 1 ? "isgd" : (shortenCombo.SelectedIndex == 2 ? "tinyurl" : "none");
 _settings.Fixup();
 _settings.Save();
 RegisterCaptureHotkey();

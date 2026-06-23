@@ -276,4 +276,12 @@ public static extern int Deskew(string inPath, string outPath);
  [DllImport(Lib, EntryPoint = "shotcore_combine_stack_vertical", CharSet = CharSet.Ansi)]
  private static extern IntPtr CombineStackVerticalRaw(string sizesJson, uint gap);
  public static string? CombineStackVertical(string sizesJson, uint gap) => TakeString(CombineStackVerticalRaw(sizesJson, gap));
+
+ // ShareX-style custom uploader (engine lives in the Rust core: custom_uploader.rs).
+ [DllImport(Lib, EntryPoint = "shotcore_custom_uploader_build_plan", CharSet = CharSet.Ansi)]
+ private static extern IntPtr CustomUploaderBuildPlanRaw(string configJson, string input, string filename);
+ public static string? CustomUploaderBuildPlan(string configJson, string input, string filename) => TakeString(CustomUploaderBuildPlanRaw(configJson, input, filename));
+ [DllImport(Lib, EntryPoint = "shotcore_custom_uploader_resolve_response", CharSet = CharSet.Ansi)]
+ private static extern IntPtr CustomUploaderResolveResponseRaw(string configJson, string response, string headersJson, string input, string filename);
+ public static string? CustomUploaderResolveResponse(string configJson, string response, string headersJson, string input, string filename) => TakeString(CustomUploaderResolveResponseRaw(configJson, response, headersJson, input, filename));
 }

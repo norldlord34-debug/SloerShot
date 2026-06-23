@@ -145,6 +145,10 @@ void shotcore_editor_set_stroke_color(ShotEditor *ed, uint8_t r, uint8_t g, uint
 void shotcore_editor_set_stroke_width(ShotEditor *ed, double width);
 /* Set the active shape style (and recolor the selection) from a ShapeStyle JSON. Returns 1 on success. */
 int shotcore_editor_set_style_json(ShotEditor *ed, const char *style_json);
+/* ShareX custom uploader: parse config JSON, build the HTTP request plan JSON (resolves request-time {input}/{filename}/{random}). Free result. */
+char *shotcore_custom_uploader_build_plan(const char *config_json, const char *input, const char *filename);
+/* ShareX custom uploader: resolve response links JSON (url/thumbnail_url/deletion_url) via {json/regex/xml/header/response} syntax. Free result. */
+char *shotcore_custom_uploader_resolve_response(const char *config_json, const char *response, const char *headers_json, const char *input, const char *filename);
 
 #ifdef __cplusplus
 }

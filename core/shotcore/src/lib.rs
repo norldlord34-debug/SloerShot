@@ -22,6 +22,7 @@ pub mod combine;
 pub mod contrast;
 pub mod corners;
 pub mod crop;
+pub mod custom_uploader;
 pub mod deskew;
 pub mod detect;
 pub mod docdetect;

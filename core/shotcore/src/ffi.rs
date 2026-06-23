@@ -2186,3 +2186,62 @@ if entries.is_empty() { return ERR_IMAGE; }
 let file = match std::fs::File::create(&outp) { Ok(f) => f, Err(_) => return ERR_IMAGE };
 match crate::video::encode_gif_from_files(&entries, fps.max(1), max_width, std::io::BufWriter::new(file)) { Ok(_) => OK, Err(_) => ERR_IMAGE }
 }
+
+/// Parse a ShareX-style custom uploader config (JSON) and build the HTTP request plan,
+/// resolving request-time {input}/{filename}/{random} syntax. Returns RequestPlan JSON.
+/// Free with `shotcore_string_free`. Returns null on bad args or JSON.
+#[no_mangle]
+pub extern "C" fn shotcore_custom_uploader_build_plan(config_json: *const c_char, input: *const c_char, filename: *const c_char) -> *mut c_char {
+ let cj = match unsafe { cstr_to_string(config_json) } { Some(s) => s, None => return std::ptr::null_mut() };
+ let inp = unsafe { cstr_to_string(input) }.unwrap_or_default();
+ let fname = unsafe { cstr_to_string(filename) }.unwrap_or_default();
+ let cfg: crate::custom_uploader::CustomUploaderConfig = match serde_json::from_str(&cj) { Ok(c) => c, Err(_) => return std::ptr::null_mut() };
+ let plan = crate::custom_uploader::build_request_plan(&cfg, &inp, &fname);
+ match serde_json::to_string(&plan) { Ok(j) => string_to_cstr(j), Err(_) => std::ptr::null_mut() }
+}
+
+/// Resolve a custom uploader response: given config JSON, the raw response body, response
+/// headers (JSON object), and input/filename, return ResponseResult JSON
+/// (url/thumbnail_url/deletion_url) using full ShareX {json/regex/xml/header/response} syntax.
+#[no_mangle]
+pub extern "C" fn shotcore_custom_uploader_resolve_response(config_json: *const c_char, response: *const c_char, headers_json: *const c_char, input: *const c_char, filename: *const c_char) -> *mut c_char {
+ let cj = match unsafe { cstr_to_string(config_json) } { Some(s) => s, None => return std::ptr::null_mut() };
+ let resp = unsafe { cstr_to_string(response) }.unwrap_or_default();
+ let hj = unsafe { cstr_to_string(headers_json) }.unwrap_or_default();
+ let inp = unsafe { cstr_to_string(input) }.unwrap_or_default();
+ let fname = unsafe { cstr_to_string(filename) }.unwrap_or_default();
+ let cfg: crate::custom_uploader::CustomUploaderConfig = match serde_json::from_str(&cj) { Ok(c) => c, Err(_) => return std::ptr::null_mut() };
+ let headers: std::collections::BTreeMap<String, String> = serde_json::from_str(&hj).unwrap_or_default();
+ let res = crate::custom_uploader::resolve_response(&cfg, &resp, &headers, &inp, &fname);
+ match serde_json::to_string(&res) { Ok(j) => string_to_cstr(j), Err(_) => std::ptr::null_mut() }
+}
+
+#[cfg(test)]
+mod custom_uploader_ffi_tests {
+ use super::*;
+ use std::ffi::CString;
+ unsafe fn take(p: *mut c_char) -> String {
+ assert!(!p.is_null());
+ let s = CStr::from_ptr(p).to_str().unwrap().to_owned();
+ shotcore_string_free(p);
+ s
+ }
+ #[test]
+ fn build_plan_over_ffi() {
+ let cfg = CString::new("{\"RequestMethod\":\"POST\",\"RequestURL\":\"https://up.test/api\",\"Parameters\":{\"name\":\"{filename}\"},\"FileFormName\":\"file\"}").unwrap();
+ let inp = CString::new("").unwrap();
+ let fname = CString::new("shot.png").unwrap();
+ let j = unsafe { take(shotcore_custom_uploader_build_plan(cfg.as_ptr(), inp.as_ptr(), fname.as_ptr())) };
+ assert!(j.contains("name=shot.png"));
+ assert!(j.contains("https://up.test/api"));
+ }
+ #[test]
+ fn resolve_response_over_ffi() {
+ let cfg = CString::new("{\"URL\":\"{json:data.url}\"}").unwrap();
+ let resp = CString::new("{\"data\":{\"url\":\"https://cdn.test/x.png\"}}").unwrap();
+ let hdr = CString::new("{}").unwrap();
+ let empty = CString::new("").unwrap();
+ let j = unsafe { take(shotcore_custom_uploader_resolve_response(cfg.as_ptr(), resp.as_ptr(), hdr.as_ptr(), empty.as_ptr(), empty.as_ptr())) };
+ assert!(j.contains("https://cdn.test/x.png"));
+ }
+}

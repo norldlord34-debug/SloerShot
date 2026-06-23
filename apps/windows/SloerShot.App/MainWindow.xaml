@@ -346,6 +346,7 @@ Title="SloerShot">
 <TextBlock x:Name="ToastText" Text="Captured" VerticalAlignment="Center" Foreground="{StaticResource TextBrush}" FontSize="12" />
 <Button Style="{StaticResource IconButtonStyle}" Click="OnCopy" ToolTipService.ToolTip="Copy"><FontIcon Glyph="&#xE8C8;" FontSize="14" /></Button>
 <Button Style="{StaticResource IconButtonStyle}" Click="OnSave" ToolTipService.ToolTip="Save"><FontIcon Glyph="&#xE74E;" FontSize="14" /></Button>
+<Button Style="{StaticResource IconButtonStyle}" Click="OnUploadShare" ToolTipService.ToolTip="Upload"><FontIcon Glyph="&#xE72D;" FontSize="14" /></Button>
 <Button Style="{StaticResource IconButtonStyle}" Click="OnOpenFolder" ToolTipService.ToolTip="Folder"><FontIcon Glyph="&#xE838;" FontSize="14" /></Button>
 <Button Style="{StaticResource IconButtonStyle}" Click="OnPin" ToolTipService.ToolTip="Pin to screen"><FontIcon Glyph="&#xE718;" FontSize="14" /></Button>
 <Button Style="{StaticResource IconButtonStyle}" Click="OnToastDismiss" ToolTipService.ToolTip="Dismiss"><FontIcon Glyph="&#xE711;" FontSize="14" /></Button>

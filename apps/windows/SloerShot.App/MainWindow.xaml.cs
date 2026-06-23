@@ -355,6 +355,7 @@ _suppressSelection = false;
 LoadImage(path);
 StatusText.Text = status + ".";
 if (_settings.AutoCopyToClipboard) _ = CopyImageFileAsync(path);
+if (_settings.AfterCaptureUpload) _ = UploadToActiveAsync();
 ShowCaptureToast(path, w, h);
 }
 private async Task CopyImageFileAsync(string path)
@@ -1169,6 +1170,8 @@ panel.Children.Add(new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "
 var destBtn = new Button { Content = "Manage..." };
 destBtn.Click += async (s, e2) => { await OnManageDestinationsAsync(); };
 panel.Children.Add(new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "Upload destinations", Description = "Imgur, custom .sxcu, SloerShot backend", HeaderIcon = new FontIcon { Glyph = "\uE898" }, Content = destBtn });
+var afterCapUploadToggle = new ToggleSwitch { IsOn = _settings.AfterCaptureUpload };
+panel.Children.Add(new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "Upload after capture", Description = "Automatically upload every new capture to the active destination", HeaderIcon = new FontIcon { Glyph = "\uEB9F" }, Content = afterCapUploadToggle });
 var copyUrlToggle = new ToggleSwitch { IsOn = _settings.AfterUploadCopyUrl };
 panel.Children.Add(new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "Copy URL after upload", HeaderIcon = new FontIcon { Glyph = "\uE8C8" }, Content = copyUrlToggle });
 var openUrlToggle = new ToggleSwitch { IsOn = _settings.AfterUploadOpenUrl };
@@ -1195,6 +1198,7 @@ _settings.ServerUrl = serverBox.Text ?? "";
 _settings.AfterUploadCopyUrl = copyUrlToggle.IsOn;
 _settings.AfterUploadOpenUrl = openUrlToggle.IsOn;
 _settings.AfterUploadShowQr = qrToggle.IsOn;
+_settings.AfterCaptureUpload = afterCapUploadToggle.IsOn;
 _settings.UrlShortener = shortenCombo.SelectedIndex == 1 ? "isgd" : (shortenCombo.SelectedIndex == 2 ? "tinyurl" : "none");
 _settings.Fixup();
 _settings.Save();

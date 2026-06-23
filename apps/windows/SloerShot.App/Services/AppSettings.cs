@@ -26,6 +26,7 @@ public string ImgurClientId { get; set; } = "";
 public bool AfterUploadCopyUrl { get; set; } = true;
 public bool AfterUploadOpenUrl { get; set; } = false;
 public bool AfterUploadShowQr { get; set; } = false;
+public bool AfterCaptureUpload { get; set; } = false;
 public string UrlShortener { get; set; } = "none";
 public string CustomShortenerConfig { get; set; } = "";
 public string ResolveDestinationConfig(UploadDestination d)

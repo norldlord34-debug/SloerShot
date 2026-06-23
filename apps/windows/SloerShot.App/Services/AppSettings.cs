@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.IO;
+using System.Collections.Generic;
 using System.Text.Json;
 namespace SloerShot.Services;
 public sealed class AppSettings
@@ -19,6 +20,18 @@ public string DefaultMode { get; set; } = "area";
 public bool DarkTheme { get; set; } = true;
 public uint AccentArgb { get; set; } = 0xFF3D7EFF;
 public string ServerUrl { get; set; } = "";
+public List<UploadDestination> Destinations { get; set; } = new();
+public string ActiveDestinationId { get; set; } = "";
+public string ImgurClientId { get; set; } = "";
+public string ResolveDestinationConfig(UploadDestination d)
+{
+var cfg = d?.ConfigJson ?? "";
+var server = ServerUrl ?? "";
+while (server.EndsWith("/")) server = server.Substring(0, server.Length - 1);
+cfg = cfg.Replace(BuiltInDestinations.ServerToken, server);
+cfg = cfg.Replace(BuiltInDestinations.ImgurClientToken, ImgurClientId ?? "");
+return cfg;
+}
 public static string DefaultPicturesFolder()
 {
 return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "SloerShot");
@@ -62,6 +75,9 @@ if (CaptureDelaySeconds > 10) CaptureDelaySeconds = 10;
 if (JpegQuality < 10) JpegQuality = 10;
 if (JpegQuality > 100) JpegQuality = 100;
 if (Format != "jpg") Format = "png";
+if (Destinations == null) Destinations = new List<UploadDestination>();
+if (Destinations.Count == 0) Destinations = BuiltInDestinations.Seed();
+if (string.IsNullOrWhiteSpace(ActiveDestinationId) || Destinations.TrueForAll(d => d.Id != ActiveDestinationId)) ActiveDestinationId = Destinations[0].Id;
 return this;
 }
 }

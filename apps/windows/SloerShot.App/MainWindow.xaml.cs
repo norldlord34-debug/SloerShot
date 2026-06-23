@@ -30,6 +30,8 @@ public BitmapImage? Thumb { get; init; }
 public sealed partial class MainWindow : Window
 {
 private readonly AppSettings _settings;
+private readonly UploaderEngine _uploader = new();
+private string _lastUploadDeletionUrl = "";
 private HotkeyService? _hotkey;
 private DispatcherTimer? _toastTimer;
 private readonly List<PinWindow> _pins = new();
@@ -643,18 +645,117 @@ catch (Exception ex) { StatusText.Text = "Set text failed: " + ex.Message; }
 }
 private async void OnUploadShare(object sender, RoutedEventArgs e)
 {
+await UploadToActiveAsync();
+}
+private async Task UploadToActiveAsync()
+{
 try
 {
-if (_lastCapturePath == null) { StatusText.Text = "Capture something first."; return; }
-if (string.IsNullOrWhiteSpace(_settings.ServerUrl)) { StatusText.Text = "Set a share server URL in Settings first."; return; }
-StatusText.Text = "Uploading to cloud...";
-var client = new CloudClient(_settings.ServerUrl);
-var link = await client.UploadImageAsync(_lastCapturePath);
-if (string.IsNullOrEmpty(link)) { StatusText.Text = "Upload failed (check server URL / backend)."; return; }
-var dp = new DataPackage(); dp.SetText(link); Clipboard.SetContent(dp);
-StatusText.Text = "Uploaded - link copied: " + link;
+if (_lastCapturePath == null || !File.Exists(_lastCapturePath)) { StatusText.Text = "Capture something first."; return; }
+var dest = ActiveDestination();
+if (dest == null) { StatusText.Text = "No upload destination configured."; return; }
+if (dest.Id == "builtin-sloershot" && string.IsNullOrWhiteSpace(_settings.ServerUrl)) { StatusText.Text = "Set a share server URL in Settings first."; return; }
+if (dest.Id == "builtin-imgur" && string.IsNullOrWhiteSpace(_settings.ImgurClientId)) { StatusText.Text = "Set your Imgur Client ID in Manage destinations first."; return; }
+var cfg = _settings.ResolveDestinationConfig(dest);
+StatusText.Text = "Uploading to " + dest.Name + "...";
+var outcome = await _uploader.UploadFileAsync(cfg, _lastCapturePath);
+if (!outcome.Success) { StatusText.Text = "Upload failed: " + outcome.Error; return; }
+_lastUploadDeletionUrl = outcome.DeletionUrl ?? "";
+var dp = new DataPackage(); dp.SetText(outcome.Url); Clipboard.SetContent(dp);
+StatusText.Text = "Uploaded to " + dest.Name + " - link copied: " + outcome.Url;
 }
 catch (Exception ex) { StatusText.Text = "Share failed: " + ex.Message; }
+}
+private UploadDestination? ActiveDestination()
+{
+var list = _settings.Destinations;
+if (list == null || list.Count == 0) return null;
+foreach (var d in list) { if (d.Id == _settings.ActiveDestinationId) return d; }
+return list[0];
+}
+private void OnUploadFlyoutOpening(object sender, object e)
+{
+try
+{
+var mf = UploadFlyout;
+if (mf == null) return;
+mf.Items.Clear();
+foreach (var d in _settings.Destinations)
+{
+var captured = d;
+var item = new MenuFlyoutItem { Text = d.Name + (d.Id == _settings.ActiveDestinationId ? " (active)" : "") };
+item.Click += async (s, ev) => { _settings.ActiveDestinationId = captured.Id; _settings.Save(); await UploadToActiveAsync(); };
+mf.Items.Add(item);
+}
+mf.Items.Add(new MenuFlyoutSeparator());
+var manage = new MenuFlyoutItem { Text = "Manage destinations..." };
+manage.Click += async (s, ev) => { await OnManageDestinationsAsync(); };
+mf.Items.Add(manage);
+}
+catch { }
+}
+private async Task OnManageDestinationsAsync()
+{
+var list = new ListView { SelectionMode = ListViewSelectionMode.Single, MaxHeight = 220, MinWidth = 470 };
+void Refresh()
+{
+list.Items.Clear();
+foreach (var d in _settings.Destinations)
+{
+var label = d.Name + (d.Id == _settings.ActiveDestinationId ? " (active)" : "") + (d.BuiltIn ? " [built-in]" : "");
+list.Items.Add(new ListViewItem { Content = label, Tag = d.Id });
+}
+}
+Refresh();
+string? Selected() => (list.SelectedItem as ListViewItem)?.Tag as string;
+var setActive = new Button { Content = "Set active" };
+setActive.Click += (s, e) => { var id = Selected(); if (id != null) { _settings.ActiveDestinationId = id; Refresh(); } };
+var import = new Button { Content = "Import .sxcu..." };
+import.Click += async (s, e) => { var d = await ImportSxcuAsync(); if (d != null) { _settings.Destinations.Add(d); _settings.ActiveDestinationId = d.Id; Refresh(); } };
+var remove = new Button { Content = "Remove" };
+remove.Click += (s, e) => { var id = Selected(); if (id != null) { var d = _settings.Destinations.Find(x => x.Id == id); if (d != null && !d.BuiltIn) { _settings.Destinations.Remove(d); if (_settings.ActiveDestinationId == id && _settings.Destinations.Count > 0) _settings.ActiveDestinationId = _settings.Destinations[0].Id; Refresh(); } } };
+var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+btnRow.Children.Add(setActive); btnRow.Children.Add(import); btnRow.Children.Add(remove);
+var addBox = new TextBox { AcceptsReturn = true, Height = 96, TextWrapping = TextWrapping.Wrap, PlaceholderText = "Paste a ShareX custom uploader JSON, then click Add custom" };
+var addBtn = new Button { Content = "Add custom" };
+addBtn.Click += (s, e) => { var tx = addBox.Text ?? ""; if (!string.IsNullOrWhiteSpace(tx)) { var d = new UploadDestination { Name = ExtractName(tx, "Custom uploader"), ConfigJson = tx, BuiltIn = false }; _settings.Destinations.Add(d); addBox.Text = ""; Refresh(); } };
+var imgurBox = new TextBox { Text = _settings.ImgurClientId, PlaceholderText = "Imgur Client ID (needed for Imgur)", MinWidth = 470 };
+var panel = new StackPanel { Spacing = 8, MinWidth = 480 };
+panel.Children.Add(new TextBlock { Text = "ShareX-compatible upload destinations. Use %SERVER% for your backend URL.", TextWrapping = TextWrapping.Wrap });
+panel.Children.Add(list);
+panel.Children.Add(btnRow);
+panel.Children.Add(addBox);
+panel.Children.Add(addBtn);
+panel.Children.Add(new TextBlock { Text = "Imgur Client ID", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+panel.Children.Add(imgurBox);
+var scroll = new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 520 };
+var dialog = new ContentDialog { Title = "Upload Destinations", PrimaryButtonText = "Done", Content = scroll, XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+await dialog.ShowAsync();
+_settings.ImgurClientId = imgurBox.Text ?? "";
+_settings.Fixup();
+_settings.Save();
+StatusText.Text = "Destinations updated.";
+}
+private async Task<UploadDestination?> ImportSxcuAsync()
+{
+try
+{
+var picker = new Windows.Storage.Pickers.FileOpenPicker();
+picker.FileTypeFilter.Add(".sxcu");
+picker.FileTypeFilter.Add(".json");
+var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+var file = await picker.PickSingleFileAsync();
+if (file == null) return null;
+var text = await Windows.Storage.FileIO.ReadTextAsync(file);
+return new UploadDestination { Name = ExtractName(text, file.Name), ConfigJson = text, BuiltIn = false };
+}
+catch { return null; }
+}
+private static string ExtractName(string json, string fallback)
+{
+try { using var doc = System.Text.Json.JsonDocument.Parse(json); if (doc.RootElement.TryGetProperty("Name", out var n)) { var sv = n.GetString(); if (!string.IsNullOrWhiteSpace(sv)) return sv; } } catch { }
+return System.IO.Path.GetFileNameWithoutExtension(fallback);
 }
 private void OnBgPreset(object sender, RoutedEventArgs e) { var tg = (sender as FrameworkElement)?.Tag as string; if (tg != null) { _bgPreset = tg; _bgType = "gradient"; if (BgTypeCombo != null) BgTypeCombo.SelectedIndex = 0; StatusText.Text = "Gradient: " + tg; } }
 private void OnBgColorSwatch(object sender, RoutedEventArgs e) { var hex = (sender as FrameworkElement)?.Tag as string; if (hex != null && hex.Length >= 6) { try { _bgColor = (Convert.ToByte(hex.Substring(0, 2), 16), Convert.ToByte(hex.Substring(2, 2), 16), Convert.ToByte(hex.Substring(4, 2), 16)); _bgType = "color"; if (BgTypeCombo != null) BgTypeCombo.SelectedIndex = 1; } catch { } } }

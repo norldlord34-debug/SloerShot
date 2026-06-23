@@ -370,4 +370,30 @@ mod tests {
  let ctx = Ctx { input: String::new(), filename: String::new(), response: String::new(), headers: BTreeMap::new() };
  assert_eq!(parse_syntax("a\\{b\\}c", &ctx), "a{b}c");
  }
+
+ #[test]
+ fn builtin_sloershot_config() {
+ let cfg_json = "{\"Name\":\"SloerShot Backend\",\"RequestMethod\":\"POST\",\"RequestURL\":\"https://h.test/v1/upload\",\"Body\":\"Binary\",\"URL\":\"{json:url}\"}";
+ let cfg: CustomUploaderConfig = serde_json::from_str(cfg_json).unwrap();
+ let plan = build_request_plan(&cfg, "shot.png", "shot.png");
+ assert_eq!(plan.method, "POST");
+ assert_eq!(plan.url, "https://h.test/v1/upload");
+ assert_eq!(plan.body, "Binary");
+ let links = resolve_response(&cfg, "{\"url\":\"https://h.test/f/abc.png\"}", &BTreeMap::new(), "shot.png", "shot.png");
+ assert_eq!(links.url, "https://h.test/f/abc.png");
+ }
+
+ #[test]
+ fn builtin_imgur_config() {
+ let cfg_json = "{\"Name\":\"Imgur\",\"RequestMethod\":\"POST\",\"RequestURL\":\"https://api.imgur.com/3/image\",\"Headers\":{\"Authorization\":\"Client-ID ABC\"},\"Body\":\"MultipartFormData\",\"FileFormName\":\"image\",\"URL\":\"{json:data.link}\",\"DeletionURL\":\"https://imgur.com/delete/{json:data.deletehash}\"}";
+ let cfg: CustomUploaderConfig = serde_json::from_str(cfg_json).unwrap();
+ let plan = build_request_plan(&cfg, "shot.png", "shot.png");
+ assert_eq!(plan.body, "MultipartFormData");
+ assert_eq!(plan.file_form_name, "image");
+ assert_eq!(plan.headers.get("Authorization").unwrap(), "Client-ID ABC");
+ let resp = "{\"data\":{\"link\":\"https://i.imgur.com/x.png\",\"deletehash\":\"DEL123\"},\"success\":true}";
+ let links = resolve_response(&cfg, resp, &BTreeMap::new(), "shot.png", "shot.png");
+ assert_eq!(links.url, "https://i.imgur.com/x.png");
+ assert_eq!(links.deletion_url, "https://imgur.com/delete/DEL123");
+ }
 }

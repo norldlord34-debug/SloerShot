@@ -311,9 +311,15 @@ Title="SloerShot">
 <Button Style="{StaticResource IconButtonStyle}" Click="OnCopy" ToolTipService.ToolTip="Copy to clipboard (Ctrl+C)">
 <FontIcon Glyph="&#xE8C8;" FontSize="15" />
 </Button>
-<Button Style="{StaticResource IconButtonStyle}" Click="OnUploadShare" ToolTipService.ToolTip="Create share link (cloud)">
+<Button Style="{StaticResource IconButtonStyle}" Click="OnUploadShare" ToolTipService.ToolTip="Upload to active destination">
 <FontIcon Glyph="&#xE72D;" FontSize="15" />
 </Button>
+<DropDownButton VerticalAlignment="Center" Height="34" CornerRadius="7" Background="Transparent" BorderThickness="0" Padding="6,0" ToolTipService.ToolTip="Choose / manage upload destination">
+<FontIcon Glyph="&#xE70D;" FontSize="11" />
+<DropDownButton.Flyout>
+<MenuFlyout x:Name="UploadFlyout" Opening="OnUploadFlyoutOpening" />
+</DropDownButton.Flyout>
+</DropDownButton>
 <Button Style="{StaticResource IconButtonStyle}" Click="OnSave" ToolTipService.ToolTip="Save annotated image (Ctrl+S)">
 <FontIcon Glyph="&#xE74E;" FontSize="15" />
 </Button>

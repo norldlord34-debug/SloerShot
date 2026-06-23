@@ -89,6 +89,7 @@ InitHotkey();
 this.Closed += OnWindowClosed;
 try { this.AppWindow.Closing += OnAppWindowClosing; } catch { }
 SetupTray();
+HandleCommandLine();
 }
 private void InitHotkey()
 {
@@ -106,7 +107,7 @@ private void RegisterCaptureHotkey()
 {
 if (_hotkey != null)
 {
-_hotkey.Unregister(1); _hotkey.Unregister(2); _hotkey.Unregister(3); _hotkey.Unregister(4); _hotkey.Unregister(5);
+_hotkey.Unregister(1); _hotkey.Unregister(2); _hotkey.Unregister(3); _hotkey.Unregister(4); _hotkey.Unregister(5); _hotkey.Unregister(6);
 if (_settings.HotkeyEnabled)
 {
 _hotkey.Register(1, _settings.HotkeyModifiers, _settings.HotkeyVk);
@@ -115,6 +116,7 @@ _hotkey.Register(2, cs, 0x34);
 _hotkey.Register(3, cs, 0x35);
 _hotkey.Register(4, cs, 0x36);
 _hotkey.Register(5, cs, 0x32);
+_hotkey.Register(6, cs, 0x55);
 }
 }
 UpdateHotkeyHint();
@@ -128,6 +130,7 @@ Action act = id switch
 3 => () => DoCapture("window"),
 4 => () => DoCapture("full"),
 5 => () => OnToggleRecording(this, new RoutedEventArgs()),
+6 => () => _ = UploadToActiveAsync(),
 _ => () => DoCapture(_settings.DefaultMode),
 };
 if (dq != null) dq.TryEnqueue(() => act()); else act();
@@ -935,6 +938,58 @@ var dlg = new ContentDialog { Title = "Generate QR", Content = box, PrimaryButto
 if (await dlg.ShowAsync() != ContentDialogResult.Primary) return;
 var text = box.Text ?? "";
 if (!string.IsNullOrWhiteSpace(text)) await ShowQrDialogAsync(text);
+}
+private void HandleCommandLine()
+{
+try
+{
+var args = Environment.GetCommandLineArgs();
+if (args.Length < 2) return;
+var dq = DispatcherQueue;
+if (dq == null) return;
+dq.TryEnqueue(async () =>
+{
+try
+{
+for (int i = 1; i < args.Length; i++)
+{
+var a = args[i];
+var lower = a.ToLowerInvariant();
+if (lower == "--capture" || lower == "-c") { var mode = (i + 1 < args.Length) ? args[++i].ToLowerInvariant() : "area"; DoCapture(mode); }
+else if (lower == "--record" || lower == "-r") { OnToggleRecording(this, new RoutedEventArgs()); }
+else if (lower == "--upload" || lower == "-u") { if (i + 1 < args.Length) { await UploadFilePathAsync(args[++i]); } }
+else if (File.Exists(a)) { OpenImagePath(a); }
+}
+}
+catch { }
+});
+}
+catch { }
+}
+private void OpenImagePath(string path)
+{
+var ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
+if (ext != ".png" && ext != ".jpg" && ext != ".jpeg" && ext != ".bmp" && ext != ".gif" && ext != ".webp") return;
+_suppressSelection = true; _captures.Insert(0, MakeItem(path)); CaptureCountText.Text = _captures.Count.ToString(); CapturesList.SelectedIndex = 0; _suppressSelection = false;
+LoadImage(path);
+}
+private async Task UploadFilePathAsync(string path)
+{
+try
+{
+if (!File.Exists(path)) { StatusText.Text = "File not found: " + path; return; }
+var dest = ActiveDestination();
+if (dest == null) { StatusText.Text = "No upload destination configured."; return; }
+if (dest.Id == "builtin-sloershot" && string.IsNullOrWhiteSpace(_settings.ServerUrl)) { StatusText.Text = "Set a share server URL in Settings first."; return; }
+var cfg = _settings.ResolveDestinationConfig(dest);
+StatusText.Text = "Uploading " + System.IO.Path.GetFileName(path) + "...";
+var outcome = await _uploader.UploadFileAsync(cfg, path);
+if (!outcome.Success) { StatusText.Text = "Upload failed: " + outcome.Error; return; }
+_lastUploadUrl = outcome.Url;
+var dp = new DataPackage(); dp.SetText(outcome.Url); Clipboard.SetContent(dp);
+StatusText.Text = "Uploaded - link copied: " + outcome.Url;
+}
+catch (Exception ex) { StatusText.Text = "Upload error: " + ex.Message; }
 }
 private void OnBgPreset(object sender, RoutedEventArgs e) { var tg = (sender as FrameworkElement)?.Tag as string; if (tg != null) { _bgPreset = tg; _bgType = "gradient"; if (BgTypeCombo != null) BgTypeCombo.SelectedIndex = 0; StatusText.Text = "Gradient: " + tg; } }
 private void OnBgColorSwatch(object sender, RoutedEventArgs e) { var hex = (sender as FrameworkElement)?.Tag as string; if (hex != null && hex.Length >= 6) { try { _bgColor = (Convert.ToByte(hex.Substring(0, 2), 16), Convert.ToByte(hex.Substring(2, 2), 16), Convert.ToByte(hex.Substring(4, 2), 16)); _bgType = "color"; if (BgTypeCombo != null) BgTypeCombo.SelectedIndex = 1; } catch { } } }

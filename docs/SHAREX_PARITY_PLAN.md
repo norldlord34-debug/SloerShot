@@ -34,3 +34,22 @@ shell does UI + the actual network/file I/O. Each phase builds locally (dotnet 0
  plus no-secret built-ins. Users paste any ShareX custom uploader and it works.
 - Network/file actions are build+logic verified; the core parsers are unit-tested. The WinUI app is built locally (dotnet)
  and on CI, but not driven interactively here.
+
+## Status: shipped (P1-P8 complete, CI-green)
+- P1 core custom_uploader.rs (config parse + request plan + response syntax) + FFI; unit-tested.
+- P2 UploaderEngine (Multipart/Form/JSON/XML/Binary) + built-ins (SloerShot backend, Imgur anon) + destinations manager (.sxcu import / paste JSON).
+- P3 after-upload pipeline (shorten/copy/open/QR) + is.gd/TinyURL + shotcore_qr_encode_png.
+- P4 after-capture pipeline (copy/save/annotate/upload) wired into FinishCapture + toast Upload button.
+- P5 core effects: pixelate, gamma, posterize, black_white, solarize, colorize, hue, saturation, emboss, edge, sharpen (via shotcore_fx_apply) + Effects menu.
+- P6 core indexer (HTML/text/JSON) + shotcore_index_folder + Tools > Index folder.
+- P7 tools: hashing.rs (MD5/SHA1/SHA256/SHA512/CRC32) + fx::split_grid + Tools (hash checker, split image, upload text, generate QR).
+- P8 command-line args + Ctrl+Shift+U upload hotkey + settings polish.
+
+### Command-line arguments
+- `SloerShot.exe --capture area|window|full` (alias `-c`) capture on launch.
+- `SloerShot.exe --record` (alias `-r`) toggle screen recording.
+- `SloerShot.exe --upload <file>` (alias `-u`) upload a file to the active destination and copy the link.
+- `SloerShot.exe <image-file>` open an image in the editor.
+
+### Global hotkeys
+- Ctrl+Shift+4 area, Ctrl+Shift+5 window, Ctrl+Shift+6 fullscreen, Ctrl+Shift+2 record, Ctrl+Shift+U upload last capture (plus the configurable primary hotkey).

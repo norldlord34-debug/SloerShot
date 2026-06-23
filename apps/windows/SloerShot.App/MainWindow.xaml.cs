@@ -103,16 +103,31 @@ private void RegisterCaptureHotkey()
 {
 if (_hotkey != null)
 {
-_hotkey.Unregister(1);
-if (_settings.HotkeyEnabled) _hotkey.Register(1, _settings.HotkeyModifiers, _settings.HotkeyVk);
+_hotkey.Unregister(1); _hotkey.Unregister(2); _hotkey.Unregister(3); _hotkey.Unregister(4); _hotkey.Unregister(5);
+if (_settings.HotkeyEnabled)
+{
+_hotkey.Register(1, _settings.HotkeyModifiers, _settings.HotkeyVk);
+const uint cs = HotkeyService.ModControl | HotkeyService.ModShift;
+_hotkey.Register(2, cs, 0x34);
+_hotkey.Register(3, cs, 0x35);
+_hotkey.Register(4, cs, 0x36);
+_hotkey.Register(5, cs, 0x32);
+}
 }
 UpdateHotkeyHint();
 }
 private void OnHotkey(int id)
 {
-if (id != 1) return;
 var dq = DispatcherQueue;
-if (dq != null) dq.TryEnqueue(() => DoCapture(_settings.DefaultMode)); else DoCapture(_settings.DefaultMode);
+Action act = id switch
+{
+2 => () => DoCapture("area"),
+3 => () => DoCapture("window"),
+4 => () => DoCapture("full"),
+5 => () => OnToggleRecording(this, new RoutedEventArgs()),
+_ => () => DoCapture(_settings.DefaultMode),
+};
+if (dq != null) dq.TryEnqueue(() => act()); else act();
 }
 private void UpdateHotkeyHint()
 {

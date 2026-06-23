@@ -2329,3 +2329,43 @@ mod fx_new_effects_ffi_tests {
  let _ = std::fs::remove_file(&outp);
  }
 }
+
+/// Index a folder tree and write it to out_path as HTML, plain text, or JSON.
+/// format = "html" | "text" | "json" (defaults to html). Returns OK or an error code.
+#[no_mangle]
+pub extern "C" fn shotcore_index_folder(root_path: *const c_char, format: *const c_char, out_path: *const c_char) -> c_int {
+ let root = match unsafe { cstr_to_string(root_path) } { Some(s) => s, None => return ERR_ARG };
+ let fmt = match unsafe { cstr_to_string(format) } { Some(s) => s, None => return ERR_ARG };
+ let outp = match unsafe { cstr_to_string(out_path) } { Some(s) => s, None => return ERR_ARG };
+ let p = std::path::Path::new(&root);
+ if !p.is_dir() { return ERR_ARG; }
+ let node = crate::indexer::build_index(p, &crate::indexer::IndexOptions::default());
+ let content = match fmt.as_str() {
+ "json" => crate::indexer::to_json(&node),
+ "text" => crate::indexer::to_text(&node),
+ _ => crate::indexer::to_html(&node),
+ };
+ match std::fs::write(&outp, content) { Ok(_) => OK, Err(_) => ERR_IMAGE }
+}
+
+#[cfg(test)]
+mod indexer_ffi_tests {
+ use super::*;
+ use std::ffi::CString;
+ #[test]
+ fn index_folder_writes_html() {
+ let dir = std::env::temp_dir().join("shotcore_idxffi");
+ let _ = std::fs::remove_dir_all(&dir);
+ std::fs::create_dir_all(&dir).unwrap();
+ std::fs::write(dir.join("x.txt"), b"hi").unwrap();
+ let outp = std::env::temp_dir().join("shotcore_idxffi_out.html");
+ let rp = CString::new(dir.to_str().unwrap()).unwrap();
+ let fmt = CString::new("html").unwrap();
+ let op = CString::new(outp.to_str().unwrap()).unwrap();
+ assert_eq!(shotcore_index_folder(rp.as_ptr(), fmt.as_ptr(), op.as_ptr()), OK);
+ let html = std::fs::read_to_string(&outp).unwrap();
+ assert!(html.contains("x.txt"));
+ let _ = std::fs::remove_dir_all(&dir);
+ let _ = std::fs::remove_file(&outp);
+ }
+}

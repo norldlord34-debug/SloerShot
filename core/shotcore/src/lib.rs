@@ -39,6 +39,7 @@ pub mod imgexport;
 pub mod hough;
 pub mod hit;
 pub mod imagediff;
+pub mod indexer;
 pub mod license;
 pub mod magnifier;
 pub mod mask;

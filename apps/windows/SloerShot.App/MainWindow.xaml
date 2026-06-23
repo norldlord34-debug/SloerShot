@@ -266,6 +266,14 @@ Title="SloerShot">
 </DropDownButton>
 <Rectangle Width="1" Height="22" Fill="{StaticResource StrokeBrush}" Margin="5,0" />
 <DropDownButton VerticalAlignment="Center" Height="34" CornerRadius="7" Background="Transparent" BorderThickness="0" Padding="10,0">
+<TextBlock Text="Tools" Foreground="{StaticResource TextBrush}" />
+<DropDownButton.Flyout>
+<MenuFlyout>
+<MenuFlyoutItem Text="Index folder..." Click="OnIndexFolder" />
+</MenuFlyout>
+</DropDownButton.Flyout>
+</DropDownButton>
+<DropDownButton VerticalAlignment="Center" Height="34" CornerRadius="7" Background="Transparent" BorderThickness="0" Padding="10,0">
 <TextBlock Text="Backdrop" Foreground="{StaticResource TextBrush}" />
 <DropDownButton.Flyout>
 <Flyout>

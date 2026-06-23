@@ -817,6 +817,38 @@ try { File.Delete(tmp); } catch { }
 }
 catch (Exception ex) { StatusText.Text = "QR error: " + ex.Message; }
 }
+private async void OnIndexFolder(object sender, RoutedEventArgs e)
+{
+try
+{
+var folder = await PickFolderAsync();
+if (folder == null) return;
+var combo = new ComboBox { MinWidth = 160 };
+combo.Items.Add("HTML"); combo.Items.Add("Text"); combo.Items.Add("JSON");
+combo.SelectedIndex = 0;
+var panel = new StackPanel { Spacing = 8 };
+panel.Children.Add(new TextBlock { Text = "Folder: " + folder, TextWrapping = TextWrapping.Wrap, MaxWidth = 380 });
+panel.Children.Add(combo);
+var dlg = new ContentDialog { Title = "Folder Indexer", Content = panel, PrimaryButtonText = "Create", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+if (await dlg.ShowAsync() != ContentDialogResult.Primary) return;
+var idx = combo.SelectedIndex;
+var fmt = idx == 1 ? "text" : (idx == 2 ? "json" : "html");
+var ext = idx == 1 ? ".txt" : (idx == 2 ? ".json" : ".html");
+var picker = new Windows.Storage.Pickers.FileSavePicker();
+picker.SuggestedFileName = "index";
+picker.FileTypeChoices.Add(fmt.ToUpperInvariant(), new List<string> { ext });
+var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+var outFile = await picker.PickSaveFileAsync();
+if (outFile == null) return;
+StatusText.Text = "Indexing folder...";
+int rc = await Task.Run(() => ShotCore.IndexFolder(folder, fmt, outFile.Path));
+if (rc != 0) { StatusText.Text = "Indexing failed (" + rc + ")."; return; }
+StatusText.Text = "Folder indexed: " + outFile.Path;
+try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = outFile.Path, UseShellExecute = true }); } catch { }
+}
+catch (Exception ex) { StatusText.Text = "Indexer error: " + ex.Message; }
+}
 private void OnBgPreset(object sender, RoutedEventArgs e) { var tg = (sender as FrameworkElement)?.Tag as string; if (tg != null) { _bgPreset = tg; _bgType = "gradient"; if (BgTypeCombo != null) BgTypeCombo.SelectedIndex = 0; StatusText.Text = "Gradient: " + tg; } }
 private void OnBgColorSwatch(object sender, RoutedEventArgs e) { var hex = (sender as FrameworkElement)?.Tag as string; if (hex != null && hex.Length >= 6) { try { _bgColor = (Convert.ToByte(hex.Substring(0, 2), 16), Convert.ToByte(hex.Substring(2, 2), 16), Convert.ToByte(hex.Substring(4, 2), 16)); _bgType = "color"; if (BgTypeCombo != null) BgTypeCombo.SelectedIndex = 1; } catch { } } }
 private void OnBgTypeChanged(object sender, SelectionChangedEventArgs e) { if ((sender as ComboBox)?.SelectedItem is ComboBoxItem it && it.Content is string sv) _bgType = sv.ToLowerInvariant(); }

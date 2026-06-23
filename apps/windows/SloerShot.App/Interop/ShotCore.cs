@@ -141,6 +141,11 @@ public static class ShotCore
  public static extern int QrEncodePng(string text, uint scale, uint quiet, string outPath);
  [DllImport(Lib, EntryPoint = "shotcore_index_folder", CharSet = CharSet.Ansi)]
  public static extern int IndexFolder(string rootPath, string format, string outPath);
+ [DllImport(Lib, EntryPoint = "shotcore_file_hashes", CharSet = CharSet.Ansi)]
+ private static extern IntPtr FileHashesRaw(string path);
+ public static string? FileHashes(string path) => TakeString(FileHashesRaw(path));
+ [DllImport(Lib, EntryPoint = "shotcore_split_image", CharSet = CharSet.Ansi)]
+ public static extern int SplitImage(string inPath, uint rows, uint cols, string outDir, string baseName);
  [DllImport(Lib, EntryPoint = "shotcore_qr_decode")]
  private static extern IntPtr QrDecodeRaw(byte[] rgba, UIntPtr len, uint width, uint height);
  public static string? QrDecode(byte[] rgba, uint width, uint height) => TakeString(QrDecodeRaw(rgba, (UIntPtr)rgba.Length, width, height));

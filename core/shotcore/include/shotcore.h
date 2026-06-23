@@ -50,6 +50,10 @@ char *shotcore_snap_object(const uint8_t *rgba, uintptr_t len, uint32_t width, u
 char *shotcore_qr_encode(const char *text);
 /* Index a folder tree to out_path as html|text|json. Returns 0 on success. */
 int shotcore_index_folder(const char *root_path, const char *format, const char *out_path);
+/* Compute md5/sha1/sha256/sha512/crc32 of a file. Returns JSON or null; free the result. */
+char *shotcore_file_hashes(const char *path);
+/* Split an image into rows x cols PNG tiles at out_dir/base-r<row>-c<col>.png. Returns 0 on success. */
+int shotcore_split_image(const char *in_path, uint32_t rows, uint32_t cols, const char *out_dir, const char *base);
 /* Encode text into a QR PNG at out_path (scale = px per module, quiet = quiet-zone modules). Returns 0 on success. */
 int shotcore_qr_encode_png(const char *text, uint32_t scale, uint32_t quiet, const char *out_path);
 char *shotcore_qr_decode(const uint8_t *rgba, uintptr_t len, uint32_t width, uint32_t height);

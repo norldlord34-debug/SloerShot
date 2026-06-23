@@ -2369,3 +2369,73 @@ mod indexer_ffi_tests {
  let _ = std::fs::remove_file(&outp);
  }
 }
+
+/// Compute MD5/SHA1/SHA256/SHA512/CRC32 of a file. Returns JSON object or null. Free the result.
+#[no_mangle]
+pub extern "C" fn shotcore_file_hashes(path: *const c_char) -> *mut c_char {
+ let p = match unsafe { cstr_to_string(path) } { Some(s) => s, None => return std::ptr::null_mut() };
+ let data = match std::fs::read(&p) { Ok(d) => d, Err(_) => return std::ptr::null_mut() };
+ let v = serde_json::json!({
+ "md5": crate::hashing::hash_bytes(&data, "md5"),
+ "sha1": crate::hashing::hash_bytes(&data, "sha1"),
+ "sha256": crate::hashing::hash_bytes(&data, "sha256"),
+ "sha512": crate::hashing::hash_bytes(&data, "sha512"),
+ "crc32": crate::hashing::hash_bytes(&data, "crc32"),
+ });
+ string_to_cstr(v.to_string())
+}
+
+/// Split an image into rows x cols PNG tiles saved as <out_dir>/<base>-r<row>-c<col>.png.
+/// Returns OK or an error code.
+#[no_mangle]
+pub extern "C" fn shotcore_split_image(in_path: *const c_char, rows: u32, cols: u32, out_dir: *const c_char, base: *const c_char) -> c_int {
+ let inp = match unsafe { cstr_to_string(in_path) } { Some(s) => s, None => return ERR_ARG };
+ let od = match unsafe { cstr_to_string(out_dir) } { Some(s) => s, None => return ERR_ARG };
+ let bn = match unsafe { cstr_to_string(base) } { Some(s) => s, None => return ERR_ARG };
+ let img = match image::open(&inp) { Ok(i) => i.to_rgba8(), Err(_) => return ERR_IMAGE };
+ let tiles = crate::fx::split_grid(&img, rows, cols);
+ if tiles.is_empty() { return ERR_IMAGE; }
+ for (r, c, tile) in tiles {
+ let path = format!("{}/{}-r{}-c{}.png", od, bn, r, c);
+ if tile.save(&path).is_err() { return ERR_IMAGE; }
+ }
+ OK
+}
+
+#[cfg(test)]
+mod tools_ffi_tests {
+ use super::*;
+ use std::ffi::CString;
+ unsafe fn take(p: *mut c_char) -> String {
+ assert!(!p.is_null());
+ let s = CStr::from_ptr(p).to_str().unwrap().to_owned();
+ shotcore_string_free(p);
+ s
+ }
+ #[test]
+ fn file_hashes_over_ffi() {
+ let p = std::env::temp_dir().join("shotcore_hash_test.bin");
+ std::fs::write(&p, b"abc").unwrap();
+ let c = CString::new(p.to_str().unwrap()).unwrap();
+ let j = unsafe { take(shotcore_file_hashes(c.as_ptr())) };
+ assert!(j.contains("900150983cd24fb0d6963f7d28e17f72"));
+ assert!(j.contains("a9993e364706816aba3e25717850c26c9cd0d89d"));
+ let _ = std::fs::remove_file(&p);
+ }
+ #[test]
+ fn split_image_over_ffi() {
+ use image::{Rgba, RgbaImage};
+ let dir = std::env::temp_dir().join("shotcore_split_test");
+ let _ = std::fs::remove_dir_all(&dir);
+ std::fs::create_dir_all(&dir).unwrap();
+ let inp = dir.join("in.png");
+ RgbaImage::from_pixel(20, 20, Rgba([10, 20, 30, 255])).save(&inp).unwrap();
+ let ci = CString::new(inp.to_str().unwrap()).unwrap();
+ let cd = CString::new(dir.to_str().unwrap()).unwrap();
+ let cb = CString::new("tile").unwrap();
+ assert_eq!(shotcore_split_image(ci.as_ptr(), 2, 2, cd.as_ptr(), cb.as_ptr()), OK);
+ assert!(dir.join("tile-r0-c0.png").exists());
+ assert!(dir.join("tile-r1-c1.png").exists());
+ let _ = std::fs::remove_dir_all(&dir);
+ }
+}

@@ -849,6 +849,93 @@ try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
 }
 catch (Exception ex) { StatusText.Text = "Indexer error: " + ex.Message; }
 }
+private async void OnHashCheck(object sender, RoutedEventArgs e)
+{
+try
+{
+var picker = new Windows.Storage.Pickers.FileOpenPicker();
+picker.FileTypeFilter.Add("*");
+var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+var file = await picker.PickSingleFileAsync();
+if (file == null) return;
+StatusText.Text = "Hashing...";
+var json = await Task.Run(() => ShotCore.FileHashes(file.Path));
+if (string.IsNullOrEmpty(json)) { StatusText.Text = "Hashing failed."; return; }
+using var doc = System.Text.Json.JsonDocument.Parse(json);
+var root = doc.RootElement;
+var panel = new StackPanel { Spacing = 6, MinWidth = 470 };
+panel.Children.Add(new TextBlock { Text = file.Name, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap });
+foreach (var algo in new[] { "md5", "sha1", "sha256", "sha512", "crc32" })
+{
+if (!root.TryGetProperty(algo, out var hv)) continue;
+var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+row.Children.Add(new TextBlock { Text = algo.ToUpperInvariant(), Width = 60, VerticalAlignment = VerticalAlignment.Center });
+row.Children.Add(new TextBox { Text = hv.GetString() ?? "", IsReadOnly = true, MinWidth = 360, FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas") });
+panel.Children.Add(row);
+}
+var dlg = new ContentDialog { Title = "File hashes", Content = new ScrollViewer { Content = panel, MaxHeight = 420 }, CloseButtonText = "Close", XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+await dlg.ShowAsync();
+StatusText.Text = "Hashes computed.";
+}
+catch (Exception ex) { StatusText.Text = "Hash error: " + ex.Message; }
+}
+private async void OnSplitImage(object sender, RoutedEventArgs e)
+{
+try
+{
+if (_lastCapturePath == null || !File.Exists(_lastCapturePath)) { StatusText.Text = "Capture or open an image first."; return; }
+var rowsBox = new NumberBox { Header = "Rows", Value = 2, Minimum = 1, Maximum = 20, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Inline };
+var colsBox = new NumberBox { Header = "Columns", Value = 2, Minimum = 1, Maximum = 20, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Inline };
+var panel = new StackPanel { Spacing = 10, MinWidth = 240 };
+panel.Children.Add(rowsBox); panel.Children.Add(colsBox);
+var dlg = new ContentDialog { Title = "Split image", Content = panel, PrimaryButtonText = "Split", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+if (await dlg.ShowAsync() != ContentDialogResult.Primary) return;
+uint rows = (uint)Math.Max(1, (int)rowsBox.Value);
+uint cols = (uint)Math.Max(1, (int)colsBox.Value);
+var outDir = System.IO.Path.Combine(CapturesFolder(), "split-" + DateTime.Now.ToString("yyyyMMdd-HHmmss"));
+Directory.CreateDirectory(outDir);
+StatusText.Text = "Splitting...";
+int rc = await Task.Run(() => ShotCore.SplitImage(_lastCapturePath, rows, cols, outDir, "tile"));
+if (rc != 0) { StatusText.Text = "Split failed (" + rc + ")."; return; }
+StatusText.Text = "Split into " + (rows * cols) + " tiles.";
+try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = outDir, UseShellExecute = true }); } catch { }
+}
+catch (Exception ex) { StatusText.Text = "Split error: " + ex.Message; }
+}
+private async void OnUploadText(object sender, RoutedEventArgs e)
+{
+try
+{
+var box = new TextBox { AcceptsReturn = true, Height = 180, MinWidth = 420, TextWrapping = TextWrapping.Wrap, PlaceholderText = "Type or paste text to upload to the active destination" };
+var dlg = new ContentDialog { Title = "Upload text", Content = box, PrimaryButtonText = "Upload", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+if (await dlg.ShowAsync() != ContentDialogResult.Primary) return;
+var text = box.Text ?? "";
+if (string.IsNullOrWhiteSpace(text)) return;
+var dest = ActiveDestination();
+if (dest == null) { StatusText.Text = "No upload destination configured."; return; }
+if (dest.Id == "builtin-sloershot" && string.IsNullOrWhiteSpace(_settings.ServerUrl)) { StatusText.Text = "Set a share server URL in Settings first."; return; }
+var tmp = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "paste-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".txt");
+await File.WriteAllTextAsync(tmp, text);
+var cfg = _settings.ResolveDestinationConfig(dest);
+StatusText.Text = "Uploading text...";
+var outcome = await _uploader.UploadFileAsync(cfg, tmp);
+try { File.Delete(tmp); } catch { }
+if (!outcome.Success) { StatusText.Text = "Text upload failed: " + outcome.Error; return; }
+_lastUploadUrl = outcome.Url;
+var dp = new DataPackage(); dp.SetText(outcome.Url); Clipboard.SetContent(dp);
+StatusText.Text = "Text uploaded - link copied: " + outcome.Url;
+}
+catch (Exception ex) { StatusText.Text = "Text upload error: " + ex.Message; }
+}
+private async void OnQrTool(object sender, RoutedEventArgs e)
+{
+var box = new TextBox { AcceptsReturn = true, Height = 90, MinWidth = 360, TextWrapping = TextWrapping.Wrap, PlaceholderText = "Text or URL to encode", Text = _lastUploadUrl ?? "" };
+var dlg = new ContentDialog { Title = "Generate QR", Content = box, PrimaryButtonText = "Generate", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+if (await dlg.ShowAsync() != ContentDialogResult.Primary) return;
+var text = box.Text ?? "";
+if (!string.IsNullOrWhiteSpace(text)) await ShowQrDialogAsync(text);
+}
 private void OnBgPreset(object sender, RoutedEventArgs e) { var tg = (sender as FrameworkElement)?.Tag as string; if (tg != null) { _bgPreset = tg; _bgType = "gradient"; if (BgTypeCombo != null) BgTypeCombo.SelectedIndex = 0; StatusText.Text = "Gradient: " + tg; } }
 private void OnBgColorSwatch(object sender, RoutedEventArgs e) { var hex = (sender as FrameworkElement)?.Tag as string; if (hex != null && hex.Length >= 6) { try { _bgColor = (Convert.ToByte(hex.Substring(0, 2), 16), Convert.ToByte(hex.Substring(2, 2), 16), Convert.ToByte(hex.Substring(4, 2), 16)); _bgType = "color"; if (BgTypeCombo != null) BgTypeCombo.SelectedIndex = 1; } catch { } } }
 private void OnBgTypeChanged(object sender, SelectionChangedEventArgs e) { if ((sender as ComboBox)?.SelectedItem is ComboBoxItem it && it.Content is string sv) _bgType = sv.ToLowerInvariant(); }

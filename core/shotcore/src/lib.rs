@@ -34,6 +34,7 @@ pub mod ffi;
 pub mod fx;
 pub mod geometry;
 pub mod guide;
+pub mod hashing;
 pub mod history;
 pub mod imgexport;
 pub mod hough;

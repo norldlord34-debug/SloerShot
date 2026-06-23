@@ -584,3 +584,46 @@ mod effect_tests {
  assert_eq!(solarize(&sample(), 128).dimensions(), (8, 8));
  }
 }
+
+/// Split an image into a rows x cols grid of tiles (row-major). Returns (row, col, tile).
+/// The last row/column absorbs any remainder pixels.
+pub fn split_grid(img: &RgbaImage, rows: u32, cols: u32) -> Vec<(u32, u32, RgbaImage)> {
+ let rows = rows.max(1);
+ let cols = cols.max(1);
+ let (w, h) = (img.width(), img.height());
+ let tw = (w / cols).max(1);
+ let th = (h / rows).max(1);
+ let mut out = Vec::new();
+ for r in 0..rows {
+ for c in 0..cols {
+ let x = c * tw;
+ let y = r * th;
+ if x >= w || y >= h { continue; }
+ let cw = if c == cols - 1 { w - x } else { tw };
+ let ch = if r == rows - 1 { h - y } else { th };
+ let tile = image::imageops::crop_imm(img, x, y, cw, ch).to_image();
+ out.push((r, c, tile));
+ }
+ }
+ out
+}
+
+#[cfg(test)]
+mod split_tests {
+ use super::*;
+ #[test]
+ fn splits_into_grid() {
+ let img = RgbaImage::new(10, 10);
+ let tiles = split_grid(&img, 2, 2);
+ assert_eq!(tiles.len(), 4);
+ for (_, _, t) in &tiles { assert_eq!(t.dimensions(), (5, 5)); }
+ }
+ #[test]
+ fn remainder_goes_to_last() {
+ let img = RgbaImage::new(11, 7);
+ let tiles = split_grid(&img, 1, 2);
+ assert_eq!(tiles.len(), 2);
+ assert_eq!(tiles[0].2.dimensions(), (5, 7));
+ assert_eq!(tiles[1].2.dimensions(), (6, 7));
+ }
+}

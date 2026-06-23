@@ -270,6 +270,10 @@ Title="SloerShot">
 <DropDownButton.Flyout>
 <MenuFlyout>
 <MenuFlyoutItem Text="Index folder..." Click="OnIndexFolder" />
+<MenuFlyoutItem Text="Hash checker..." Click="OnHashCheck" />
+<MenuFlyoutItem Text="Split image..." Click="OnSplitImage" />
+<MenuFlyoutItem Text="Upload text..." Click="OnUploadText" />
+<MenuFlyoutItem Text="Generate QR code..." Click="OnQrTool" />
 </MenuFlyout>
 </DropDownButton.Flyout>
 </DropDownButton>

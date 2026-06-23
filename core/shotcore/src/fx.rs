@@ -346,3 +346,241 @@ mod tests {
         assert_eq!(blur(&img(8, 8), 2.0).dimensions(), (8, 8));
     }
 }
+
+/// Pixelate: replace each square block of `block` px with its average color.
+pub fn pixelate(img: &RgbaImage, block: u32) -> RgbaImage {
+ let b = block.max(1);
+ let (w, h) = (img.width(), img.height());
+ let mut out = img.clone();
+ let mut by = 0;
+ while by < h {
+ let mut bx = 0;
+ while bx < w {
+ let (mut sr, mut sg, mut sb, mut sa, mut n) = (0u64, 0u64, 0u64, 0u64, 0u64);
+ let ex = (bx + b).min(w);
+ let ey = (by + b).min(h);
+ for y in by..ey {
+ for x in bx..ex {
+ let p = img.get_pixel(x, y).0;
+ sr += p[0] as u64; sg += p[1] as u64; sb += p[2] as u64; sa += p[3] as u64; n += 1;
+ }
+ }
+ if n > 0 {
+ let px = Rgba([(sr / n) as u8, (sg / n) as u8, (sb / n) as u8, (sa / n) as u8]);
+ for y in by..ey {
+ for x in bx..ex {
+ out.put_pixel(x, y, px);
+ }
+ }
+ }
+ bx += b;
+ }
+ by += b;
+ }
+ out
+}
+
+/// Gamma correction via a lookup table. Alpha is preserved.
+pub fn gamma(img: &RgbaImage, g: f32) -> RgbaImage {
+ let inv = 1.0 / g.max(0.01);
+ let mut lut = [0u8; 256];
+ for i in 0..256 {
+ lut[i] = clampu8(255.0 * (i as f32 / 255.0).powf(inv));
+ }
+ let mut out = img.clone();
+ for p in out.pixels_mut() {
+ p.0[0] = lut[p.0[0] as usize];
+ p.0[1] = lut[p.0[1] as usize];
+ p.0[2] = lut[p.0[2] as usize];
+ }
+ out
+}
+
+/// Posterize / reduce color depth to `levels` levels per channel (2..=256).
+pub fn posterize(img: &RgbaImage, levels: u32) -> RgbaImage {
+ let l = levels.clamp(2, 256) as f32;
+ let step = 255.0 / (l - 1.0);
+ let mut out = img.clone();
+ for p in out.pixels_mut() {
+ for c in 0..3 {
+ p.0[c] = clampu8((p.0[c] as f32 / step).round() * step);
+ }
+ }
+ out
+}
+
+/// Threshold to black and white using luminance.
+pub fn black_white(img: &RgbaImage, threshold: u8) -> RgbaImage {
+ let mut out = img.clone();
+ for p in out.pixels_mut() {
+ let lum = 0.299 * p.0[0] as f32 + 0.587 * p.0[1] as f32 + 0.114 * p.0[2] as f32;
+ let val = if lum >= threshold as f32 { 255 } else { 0 };
+ p.0[0] = val; p.0[1] = val; p.0[2] = val;
+ }
+ out
+}
+
+/// Solarize: invert channels at or above the threshold (Sabattier effect).
+pub fn solarize(img: &RgbaImage, threshold: u8) -> RgbaImage {
+ let mut out = img.clone();
+ for p in out.pixels_mut() {
+ for c in 0..3 {
+ if p.0[c] >= threshold { p.0[c] = 255 - p.0[c]; }
+ }
+ }
+ out
+}
+
+/// Tint a luminance map toward `color` (colorize).
+pub fn colorize(img: &RgbaImage, color: Color) -> RgbaImage {
+ let mut out = img.clone();
+ for p in out.pixels_mut() {
+ let lum = (0.299 * p.0[0] as f32 + 0.587 * p.0[1] as f32 + 0.114 * p.0[2] as f32) / 255.0;
+ p.0[0] = clampu8(color.r as f32 * lum);
+ p.0[1] = clampu8(color.g as f32 * lum);
+ p.0[2] = clampu8(color.b as f32 * lum);
+ }
+ out
+}
+
+fn rgb_to_hsv(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
+ let max = r.max(g).max(b);
+ let min = r.min(g).min(b);
+ let d = max - min;
+ let mut h = 0.0;
+ if d > 0.0 {
+ if max == r { h = 60.0 * (((g - b) / d) % 6.0); }
+ else if max == g { h = 60.0 * (((b - r) / d) + 2.0); }
+ else { h = 60.0 * (((r - g) / d) + 4.0); }
+ }
+ if h < 0.0 { h += 360.0; }
+ let s = if max <= 0.0 { 0.0 } else { d / max };
+ (h, s, max)
+}
+fn hsv_to_rgb(h: f32, s: f32, v: f32) -> (f32, f32, f32) {
+ let c = v * s;
+ let hh = (((h % 360.0) + 360.0) % 360.0) / 60.0;
+ let x = c * (1.0 - (hh % 2.0 - 1.0).abs());
+ let (r1, g1, b1) = match hh as i32 {
+ 0 => (c, x, 0.0),
+ 1 => (x, c, 0.0),
+ 2 => (0.0, c, x),
+ 3 => (0.0, x, c),
+ 4 => (x, 0.0, c),
+ _ => (c, 0.0, x),
+ };
+ let m = v - c;
+ (r1 + m, g1 + m, b1 + m)
+}
+
+/// Rotate hue by `degrees` in HSV space (alpha preserved).
+pub fn hue_rotate(img: &RgbaImage, degrees: f32) -> RgbaImage {
+ let mut out = img.clone();
+ for p in out.pixels_mut() {
+ let (h, s, v) = rgb_to_hsv(p.0[0] as f32 / 255.0, p.0[1] as f32 / 255.0, p.0[2] as f32 / 255.0);
+ let (r, g, b) = hsv_to_rgb(h + degrees, s, v);
+ p.0[0] = clampu8(r * 255.0); p.0[1] = clampu8(g * 255.0); p.0[2] = clampu8(b * 255.0);
+ }
+ out
+}
+/// Scale saturation by `factor` (0 = grayscale, 1 = unchanged, >1 = more vivid).
+pub fn saturate(img: &RgbaImage, factor: f32) -> RgbaImage {
+ let mut out = img.clone();
+ for p in out.pixels_mut() {
+ let (h, s, v) = rgb_to_hsv(p.0[0] as f32 / 255.0, p.0[1] as f32 / 255.0, p.0[2] as f32 / 255.0);
+ let (r, g, b) = hsv_to_rgb(h, (s * factor).clamp(0.0, 1.0), v);
+ p.0[0] = clampu8(r * 255.0); p.0[1] = clampu8(g * 255.0); p.0[2] = clampu8(b * 255.0);
+ }
+ out
+}
+
+fn convolve3x3(img: &RgbaImage, k: &[[f32; 3]; 3], bias: f32) -> RgbaImage {
+ let (w, h) = (img.width(), img.height());
+ let mut out = img.clone();
+ for y in 0..h {
+ for x in 0..w {
+ let (mut ar, mut ag, mut ab) = (0.0f32, 0.0f32, 0.0f32);
+ for ky in 0..3usize {
+ for kx in 0..3usize {
+ let sx = (x as i32 + kx as i32 - 1).clamp(0, w as i32 - 1) as u32;
+ let sy = (y as i32 + ky as i32 - 1).clamp(0, h as i32 - 1) as u32;
+ let p = img.get_pixel(sx, sy).0;
+ let kv = k[ky][kx];
+ ar += p[0] as f32 * kv; ag += p[1] as f32 * kv; ab += p[2] as f32 * kv;
+ }
+ }
+ let a = img.get_pixel(x, y).0[3];
+ out.put_pixel(x, y, Rgba([clampu8(ar + bias), clampu8(ag + bias), clampu8(ab + bias), a]));
+ }
+ }
+ out
+}
+
+/// Emboss filter (3x3 convolution with mid-gray bias).
+pub fn emboss(img: &RgbaImage) -> RgbaImage {
+ let kernel: [[f32; 3]; 3] = [[-2.0, -1.0, 0.0], [-1.0, 1.0, 1.0], [0.0, 1.0, 2.0]];
+ convolve3x3(img, &kernel, 128.0)
+}
+
+/// Edge detection (Sobel) rendered as a grayscale RGBA image.
+pub fn edge_detect(img: &RgbaImage) -> RgbaImage {
+ let gray = crate::edges::sobel(img);
+ let mut out = RgbaImage::new(img.width(), img.height());
+ for (x, y, p) in out.enumerate_pixels_mut() {
+ let val = gray.get_pixel(x, y).0[0];
+ *p = Rgba([val, val, val, 255]);
+ }
+ out
+}
+
+/// Sharpen via unsharp masking (radius 2).
+pub fn sharpen(img: &RgbaImage, amount: f32) -> RgbaImage {
+ crate::sharpen::unsharp(img, 2, amount)
+}
+
+#[cfg(test)]
+mod effect_tests {
+ use super::*;
+ fn sample() -> RgbaImage {
+ let mut i = RgbaImage::new(8, 8);
+ for (x, y, p) in i.enumerate_pixels_mut() {
+ *p = Rgba([(x * 30) as u8, (y * 30) as u8, 64, 255]);
+ }
+ i
+ }
+ #[test]
+ fn pixelate_keeps_dims() { assert_eq!(pixelate(&sample(), 4).dimensions(), (8, 8)); }
+ #[test]
+ fn gamma_identity_at_one() {
+ let i = sample();
+ assert_eq!(gamma(&i, 1.0).get_pixel(3, 3).0, i.get_pixel(3, 3).0);
+ }
+ #[test]
+ fn black_white_is_binary() {
+ for p in black_white(&sample(), 128).pixels() { assert!(p.0[0] == 0 || p.0[0] == 255); }
+ }
+ #[test]
+ fn posterize_two_levels_binary() {
+ for p in posterize(&sample(), 2).pixels() { assert!(p.0[0] == 0 || p.0[0] == 255); }
+ }
+ #[test]
+ fn hue_rotate_360_near_identity() {
+ let i = sample();
+ let o = hue_rotate(&i, 360.0);
+ let a = i.get_pixel(5, 2).0; let b = o.get_pixel(5, 2).0;
+ for c in 0..3 { assert!((a[c] as i32 - b[c] as i32).abs() <= 3); }
+ }
+ #[test]
+ fn saturate_zero_is_gray() {
+ let p = saturate(&sample(), 0.0).get_pixel(6, 1).0;
+ assert!((p[0] as i32 - p[1] as i32).abs() <= 2 && (p[1] as i32 - p[2] as i32).abs() <= 2);
+ }
+ #[test]
+ fn structural_effects_keep_dims() {
+ assert_eq!(edge_detect(&sample()).dimensions(), (8, 8));
+ assert_eq!(emboss(&sample()).dimensions(), (8, 8));
+ assert_eq!(sharpen(&sample(), 1.0).dimensions(), (8, 8));
+ assert_eq!(colorize(&sample(), Color::rgba(255, 0, 0, 255)).dimensions(), (8, 8));
+ assert_eq!(solarize(&sample(), 128).dimensions(), (8, 8));
+ }
+}

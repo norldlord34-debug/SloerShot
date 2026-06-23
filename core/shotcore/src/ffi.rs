@@ -1051,6 +1051,21 @@ pub extern "C" fn shotcore_fx_apply(
             num("h", base.height() as f64) as u32,
         ),
         "scale" => crate::fx::scale(&base, num("factor", 1.0) as f32),
+ "pixelate" => crate::fx::pixelate(&base, num("block", 12.0) as u32),
+ "gamma" => crate::fx::gamma(&base, num("gamma", 1.0) as f32),
+ "hue" => crate::fx::hue_rotate(&base, num("degrees", 0.0) as f32),
+ "saturation" => crate::fx::saturate(&base, num("factor", 1.0) as f32),
+ "posterize" | "color_depth" => crate::fx::posterize(&base, num("levels", 4.0) as u32),
+ "black_white" => crate::fx::black_white(&base, num("threshold", 128.0) as u8),
+ "solarize" => crate::fx::solarize(&base, num("threshold", 128.0) as u8),
+ "emboss" => crate::fx::emboss(&base),
+ "edge" => crate::fx::edge_detect(&base),
+ "sharpen" => crate::fx::sharpen(&base, num("amount", 1.0) as f32),
+ "colorize" => {
+ let cc = v.get("color");
+ let chc = |k: &str, d: u64| cc.and_then(|o| o.get(k)).and_then(|x| x.as_u64()).unwrap_or(d) as u8;
+ crate::fx::colorize(&base, crate::model::Color::rgba(chc("r", 255), chc("g", 0), chc("b", 0), 255))
+ }
         "crop" => crate::fx::crop(&base, &rect()),
         "spotlight" => crate::fx::spotlight(&base, &rect(), num("dim", 0.6) as f32),
         "border" => {
@@ -2277,5 +2292,40 @@ mod qr_png_ffi_tests {
  let img = image::open(&ps).unwrap();
  assert!(img.width() > 0 && img.height() > 0);
  let _ = std::fs::remove_file(&ps);
+ }
+}
+
+#[cfg(test)]
+mod fx_new_effects_ffi_tests {
+ use super::*;
+ use std::ffi::CString;
+ use image::{Rgba, RgbaImage};
+ #[test]
+ fn new_fx_ops_apply_over_ffi() {
+ let dir = std::env::temp_dir();
+ let inp = dir.join("shotcore_fxnew_in.png");
+ let outp = dir.join("shotcore_fxnew_out.png");
+ RgbaImage::from_pixel(16, 16, Rgba([200, 100, 50, 255])).save(&inp).unwrap();
+ let i = CString::new(inp.to_str().unwrap()).unwrap();
+ let o = CString::new(outp.to_str().unwrap()).unwrap();
+ let ops = [
+ "{\"op\":\"pixelate\",\"block\":4}",
+ "{\"op\":\"emboss\"}",
+ "{\"op\":\"edge\"}",
+ "{\"op\":\"posterize\",\"levels\":3}",
+ "{\"op\":\"black_white\",\"threshold\":120}",
+ "{\"op\":\"solarize\",\"threshold\":120}",
+ "{\"op\":\"colorize\",\"color\":{\"r\":220,\"g\":40,\"b\":40}}",
+ "{\"op\":\"gamma\",\"gamma\":1.5}",
+ "{\"op\":\"hue\",\"degrees\":90}",
+ "{\"op\":\"saturation\",\"factor\":1.6}",
+ ];
+ for op in ops {
+ let c = CString::new(op).unwrap();
+ assert_eq!(shotcore_fx_apply(i.as_ptr(), o.as_ptr(), c.as_ptr()), OK, "op failed: {}", op);
+ assert_eq!(image::open(&outp).unwrap().to_rgba8().dimensions(), (16, 16));
+ }
+ let _ = std::fs::remove_file(&inp);
+ let _ = std::fs::remove_file(&outp);
  }
 }

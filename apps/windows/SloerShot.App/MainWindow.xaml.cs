@@ -1010,6 +1010,18 @@ case "contrast": return "{\"op\":\"contrast\",\"factor\":1.3}";
 case "rotate": return "{\"op\":\"rotate\",\"deg\":90}";
 case "flip": return "{\"op\":\"flip\",\"axis\":\"h\"}";
 case "border": return "{\"op\":\"border\",\"thickness\":16,\"color\":{\"r\":255,\"g\":255,\"b\":255,\"a\":255}}";
+case "pixelate": return "{\"op\":\"pixelate\",\"block\":12}";
+case "emboss": return "{\"op\":\"emboss\"}";
+case "edge": return "{\"op\":\"edge\"}";
+case "posterize": return "{\"op\":\"posterize\",\"levels\":4}";
+case "bw": return "{\"op\":\"black_white\",\"threshold\":128}";
+case "solarize": return "{\"op\":\"solarize\",\"threshold\":128}";
+case "colorize": return "{\"op\":\"colorize\",\"color\":{\"r\":220,\"g\":40,\"b\":40}}";
+case "gamma_up": return "{\"op\":\"gamma\",\"gamma\":1.5}";
+case "gamma_down": return "{\"op\":\"gamma\",\"gamma\":0.7}";
+case "hue": return "{\"op\":\"hue\",\"degrees\":90}";
+case "saturate": return "{\"op\":\"saturation\",\"factor\":1.6}";
+case "desaturate": return "{\"op\":\"saturation\",\"factor\":0.4}";
 default: return null;
 }
 }

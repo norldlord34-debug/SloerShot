@@ -248,6 +248,19 @@ Title="SloerShot">
 <MenuFlyoutItem Text="Flatten document" Tag="flatten" Click="OnEffectMenu" />
 <MenuFlyoutItem Text="Scan QR / barcode" Tag="scan" Click="OnEffectMenu" />
 <MenuFlyoutItem Text="Auto-straighten" Tag="deskew" Click="OnEffectMenu" />
+<MenuFlyoutSeparator />
+<MenuFlyoutItem Text="Pixelate" Tag="pixelate" Click="OnEffectMenu" />
+<MenuFlyoutItem Text="Emboss" Tag="emboss" Click="OnEffectMenu" />
+<MenuFlyoutItem Text="Edge detect" Tag="edge" Click="OnEffectMenu" />
+<MenuFlyoutItem Text="Posterize" Tag="posterize" Click="OnEffectMenu" />
+<MenuFlyoutItem Text="Black and white" Tag="bw" Click="OnEffectMenu" />
+<MenuFlyoutItem Text="Solarize" Tag="solarize" Click="OnEffectMenu" />
+<MenuFlyoutItem Text="Colorize" Tag="colorize" Click="OnEffectMenu" />
+<MenuFlyoutItem Text="Gamma up" Tag="gamma_up" Click="OnEffectMenu" />
+<MenuFlyoutItem Text="Gamma down" Tag="gamma_down" Click="OnEffectMenu" />
+<MenuFlyoutItem Text="Hue rotate" Tag="hue" Click="OnEffectMenu" />
+<MenuFlyoutItem Text="More saturation" Tag="saturate" Click="OnEffectMenu" />
+<MenuFlyoutItem Text="Less saturation" Tag="desaturate" Click="OnEffectMenu" />
 </MenuFlyout>
 </DropDownButton.Flyout>
 </DropDownButton>

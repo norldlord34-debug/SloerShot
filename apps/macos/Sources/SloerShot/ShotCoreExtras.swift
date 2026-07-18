@@ -320,3 +320,28 @@ extension ShotCore {
  @discardableResult
  static func imagesToPdf(inPathsJson: String, outPath: String, quality: UInt32) -> Int32 { shotcore_images_to_pdf(inPathsJson, outPath, quality) }
 }
+
+extension ShotCore {
+ // ShareX-parity FFIs shared with the Windows app.
+ static func customUploaderBuildPlan(configJson: String, input: String, filename: String) -> String? {
+ takeString(shotcore_custom_uploader_build_plan(configJson, input, filename))
+ }
+ static func customUploaderResolveResponse(configJson: String, response: String, headersJson: String, input: String, filename: String) -> String? {
+ takeString(shotcore_custom_uploader_resolve_response(configJson, response, headersJson, input, filename))
+ }
+ @discardableResult
+ static func qrEncodePng(text: String, scale: UInt32, quiet: UInt32, outPath: String) -> Int32 {
+ shotcore_qr_encode_png(text, scale, quiet, outPath)
+ }
+ @discardableResult
+ static func indexFolder(rootPath: String, format: String, outPath: String) -> Int32 {
+ shotcore_index_folder(rootPath, format, outPath)
+ }
+ static func fileHashes(path: String) -> String? {
+ takeString(shotcore_file_hashes(path))
+ }
+ @discardableResult
+ static func splitImage(inPath: String, rows: UInt32, cols: UInt32, outDir: String, base: String) -> Int32 {
+ shotcore_split_image(inPath, rows, cols, outDir, base)
+ }
+}

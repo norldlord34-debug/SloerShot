@@ -126,6 +126,10 @@ Button("Quick OCR (copy text)") { Task { await model.quickOCR() } }.keyboardShor
 Button("Capture Text to Window") { Task { await model.ocrToPanel() } }.keyboardShortcut("o", modifiers: [.command, .shift])
 Button("Pick Color (hex)") { model.pickColor() }.keyboardShortcut("c", modifiers: [.command, .shift])
 Button("Pin Last Capture") { model.pinLast() }.keyboardShortcut("p", modifiers: [.command, .shift])
+Button("File Hashes...") { MacTools.showHashes() }
+Button("QR from Clipboard...") { MacTools.qrFromClipboard() }
+Button("Index Folder...") { MacTools.indexFolder() }
+Button("Split Image...") { MacTools.splitImage() }
 }
 Section("Library") {
 Button("Open Editor") { openWindow(id: "editor") }

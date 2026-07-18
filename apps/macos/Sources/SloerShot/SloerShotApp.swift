@@ -13,6 +13,8 @@ var pins: [PinPanel] = []
 var recorder: RecordingEngine?
 @Published var isRecording = false
 var editorOpener: (() -> Void)?
+ var pendingWorkflowUpload = false
+ init() { WorkflowStore.shared.attach(self) }
 
  @discardableResult
  func captureFullscreen() async -> Bool {
@@ -44,7 +46,15 @@ let frozen = try await Capture.captureFullscreen()
  }
  }
 
- func uploadLast() {
+ func runWorkflowMode(_ mode: String, autoUpload: Bool) {
+switch mode {
+case "record": if isRecording { stopRecording() } else { startRecording() }
+case "window": pendingWorkflowUpload = autoUpload; Task { await captureWindow() }
+case "full": pendingWorkflowUpload = autoUpload; Task { await captureFullscreen() }
+default: pendingWorkflowUpload = autoUpload; Task { await captureArea() }
+}
+}
+func uploadLast() {
 guard let img = lastImage else { lastError = "Nothing to upload"; return }
 guard let dest = DestinationStore.shared.active else { Toast.show("No upload destination"); return }
 guard let fileURL = UploaderEngine.writeTempPNG(img) else { Toast.show("Encode failed"); return }

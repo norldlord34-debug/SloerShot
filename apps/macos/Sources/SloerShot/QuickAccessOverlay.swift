@@ -141,7 +141,7 @@ extension AppModel {
 func showQAO(_ image: CGImage) {
 lastImage = image
 CaptureHistory.shared.add(image)
-if UserDefaults.standard.bool(forKey: "ss.afterCaptureUpload") { uploadLast() }
+if pendingWorkflowUpload { pendingWorkflowUpload = false; uploadLast() } else if UserDefaults.standard.bool(forKey: "ss.afterCaptureUpload") { uploadLast() }
 let qao = QuickAccessOverlay.shared
 qao.onAnnotate = { [weak self] img in self?.openEditor(with: img); self?.editorOpener?() }
 qao.onUpload = { url in

@@ -957,14 +957,50 @@ private void HandleCommandLine()
 try
 {
 var args = Environment.GetCommandLineArgs();
-if (args.Length < 2) return;
+if (args.Length >= 2) ProcessCliArgs(args, 1);
+SetupSingleInstanceListener();
+}
+catch { }
+}
+internal static string ForwardFilePath()
+{
+var d = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SloerShot");
+try { Directory.CreateDirectory(d); } catch { }
+return System.IO.Path.Combine(d, "cli-forward.txt");
+}
+private void SetupSingleInstanceListener()
+{
+try
+{
+var ev = new System.Threading.EventWaitHandle(false, System.Threading.EventResetMode.AutoReset, "SloerShot-Activate-B0B0");
+var t = new System.Threading.Thread(() =>
+{
+while (true)
+{
+try { ev.WaitOne(); } catch { break; }
+string[] fwd;
+try { var fp = ForwardFilePath(); fwd = File.Exists(fp) ? File.ReadAllLines(fp) : System.Array.Empty<string>(); } catch { fwd = System.Array.Empty<string>(); }
+if (fwd.Length > 0) ProcessCliArgs(fwd, 0);
+else { var dq = DispatcherQueue; if (dq != null) dq.TryEnqueue(() => ShowFromTray()); }
+}
+});
+t.IsBackground = true;
+t.Start();
+}
+catch { }
+}
+private void ProcessCliArgs(string[] args, int startIndex)
+{
+try
+{
 var dq = DispatcherQueue;
 if (dq == null) return;
 dq.TryEnqueue(async () =>
 {
 try
 {
-for (int i = 1; i < args.Length; i++)
+ShowFromTray();
+for (int i = startIndex; i < args.Length; i++)
 {
 var a = args[i];
 var lower = a.ToLowerInvariant();

@@ -14,6 +14,29 @@ implemented and unit-tested, a runnable CLI exercises the whole pipeline, and a 
 backend issues subscription entitlements that the core verifies offline. The native
 UI shells are scaffolded with their core bindings already written.
 
+## ShareX-parity features (v0.4.0+)
+
+The Windows app (WinUI 3) covers ShareX-class power, all over the shared tested Rust core:
+
+- Custom uploaders: paste any ShareX .sxcu config or JSON. Bodies: Multipart / Form / JSON / XML / Binary. Response syntax: `{response} {json:path} {regex:pat|n} {xml:tag} {header:name} {base64:..} {input} {filename} {random:a|b}`.
+- Built-in destinations (no account needed): SloerShot backend, Imgur (anon), catbox.moe, Litterbox, 0x0.st, transfer.sh, tmpfiles.org, file.io, paste.rs. Plus FTP/FTPS and Pastebin/Bearer templates.
+- After-capture / after-upload pipeline: auto copy, auto upload, open URL, QR of URL, shorten URL (is.gd / TinyURL / custom).
+- Image effects (core, unit-tested): grayscale, sepia, invert, blur, sharpen, pixelate, emboss, edge detect, gamma, hue, saturation, posterize, black and white, solarize, colorize, vignette, brightness, contrast, RGB split, glow, outline, drop shadow, reflection, polaroid, slice, torn/wave edges, replace-color, image watermark, plus an Effects studio with live preview + presets.
+- Tools: folder indexer (HTML/text/JSON), hash checker (MD5/SHA-1/SHA-256/SHA-512/CRC32), image splitter, text uploader, QR generator, screen color picker, screen ruler, external actions (run a program on the capture), thumbnailer.
+- Workflows: define capture workflows with their own global hotkey and auto-copy/upload.
+- Single instance: a second launch forwards its command-line args to the running instance.
+
+### Global hotkeys
+`Ctrl+Shift+4` area, `Ctrl+Shift+5` window, `Ctrl+Shift+6` fullscreen, `Ctrl+Shift+2` record, `Ctrl+Shift+U` upload last, plus the configurable primary hotkey and per-workflow hotkeys.
+
+### Command line
+- `SloerShot.exe --capture area|window|full` (alias `-c`)
+- `SloerShot.exe --record` (alias `-r`)
+- `SloerShot.exe --upload <file>` (alias `-u`)
+- `SloerShot.exe <image-file>` opens it in the editor
+
+macOS (SwiftUI) shares the same core and exposes the File Hashes / QR / Folder Index / Split tools from the menu bar.
+
 ## Quickstart
 ```
 git clone https://github.com/norldlord34-debug/SloerShot.git
@@ -137,7 +160,7 @@ Pure Rust, no native UI dependencies. Modules:
 Prerequisites: a Rust toolchain (stable). Node 18+ for the backend.
 
 ```
-# Run the full core test suite (341 unit tests + 1 integration test)
+# Run the full core test suite (380+ unit tests + 1 integration test)
 cargo test -p shotcore
 
 # Run the end-to-end demo; writes artifacts into assets/out/

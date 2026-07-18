@@ -229,7 +229,7 @@ Title="SloerShot">
 </DropDownButton.Flyout>
 </DropDownButton>
 <DropDownButton VerticalAlignment="Center" Height="34" CornerRadius="7" Background="Transparent" BorderThickness="0" Padding="10,0">
-<TextBlock Text="Effects" Foreground="{StaticResource TextBrush}" />
+<StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE790;" FontSize="13" VerticalAlignment="Center" /><TextBlock Text="Effects" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center" /></StackPanel>
 <DropDownButton.Flyout>
 <MenuFlyout>
 <MenuFlyoutItem Text="Effects studio..." Click="OnEffectsStudio" />
@@ -281,7 +281,7 @@ Title="SloerShot">
 </DropDownButton>
 <Rectangle Width="1" Height="22" Fill="{StaticResource StrokeBrush}" Margin="5,0" />
 <DropDownButton VerticalAlignment="Center" Height="34" CornerRadius="7" Background="Transparent" BorderThickness="0" Padding="10,0">
-<TextBlock Text="Tools" Foreground="{StaticResource TextBrush}" />
+<StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE90F;" FontSize="13" VerticalAlignment="Center" /><TextBlock Text="Tools" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center" /></StackPanel>
 <DropDownButton.Flyout>
 <MenuFlyout>
 <MenuFlyoutItem Text="Index folder..." Click="OnIndexFolder" />
@@ -300,7 +300,7 @@ Title="SloerShot">
 </DropDownButton.Flyout>
 </DropDownButton>
 <DropDownButton VerticalAlignment="Center" Height="34" CornerRadius="7" Background="Transparent" BorderThickness="0" Padding="10,0">
-<TextBlock Text="Backdrop" Foreground="{StaticResource TextBrush}" />
+<StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xEB9F;" FontSize="13" VerticalAlignment="Center" /><TextBlock Text="Backdrop" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center" /></StackPanel>
 <DropDownButton.Flyout>
 <Flyout>
 <StackPanel Spacing="8" Width="260">
@@ -342,7 +342,7 @@ Title="SloerShot">
 </DropDownButton.Flyout>
 </DropDownButton>
 <DropDownButton VerticalAlignment="Center" Height="34" CornerRadius="7" Background="Transparent" BorderThickness="0" Padding="10,0">
-<TextBlock Text="Export" Foreground="{StaticResource TextBrush}" />
+<StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE74E;" FontSize="13" VerticalAlignment="Center" /><TextBlock Text="Export" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center" /></StackPanel>
 <DropDownButton.Flyout>
 <MenuFlyout>
 <MenuFlyoutItem Text="Save as..." Click="OnSaveAs" />

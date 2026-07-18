@@ -627,3 +627,289 @@ mod split_tests {
  assert_eq!(tiles[1].2.dimensions(), (6, 7));
  }
 }
+
+/// Chromatic aberration: shift the red channel left and blue channel right by `offset` px.
+pub fn rgb_split(img: &RgbaImage, offset: i32) -> RgbaImage {
+ let (w, h) = (img.width(), img.height());
+ let mut out = img.clone();
+ for y in 0..h {
+ for x in 0..w {
+ let xr = (x as i32 - offset).clamp(0, w as i32 - 1) as u32;
+ let xb = (x as i32 + offset).clamp(0, w as i32 - 1) as u32;
+ let r = img.get_pixel(xr, y).0[0];
+ let g = img.get_pixel(x, y).0[1];
+ let b = img.get_pixel(xb, y).0[2];
+ let a = img.get_pixel(x, y).0[3];
+ out.put_pixel(x, y, Rgba([r, g, b, a]));
+ }
+ }
+ out
+}
+
+/// Replace pixels close to `from` (within Euclidean `tol`) with `to`.
+pub fn replace_color(img: &RgbaImage, from: Color, to: Color, tol: i32) -> RgbaImage {
+ let mut out = img.clone();
+ let t2 = tol * tol;
+ for p in out.pixels_mut() {
+ let dr = p.0[0] as i32 - from.r as i32;
+ let dg = p.0[1] as i32 - from.g as i32;
+ let db = p.0[2] as i32 - from.b as i32;
+ if dr * dr + dg * dg + db * db <= t2 {
+ p.0[0] = to.r; p.0[1] = to.g; p.0[2] = to.b;
+ }
+ }
+ out
+}
+
+/// Keep pixels whose hue is within `hue_range` of `hue_center` (degrees); grayscale the rest.
+pub fn selective_color(img: &RgbaImage, hue_center: f32, hue_range: f32) -> RgbaImage {
+ let mut out = img.clone();
+ for p in out.pixels_mut() {
+ let (hh, _, _) = rgb_to_hsv(p.0[0] as f32 / 255.0, p.0[1] as f32 / 255.0, p.0[2] as f32 / 255.0);
+ let mut diff = (hh - hue_center).abs();
+ if diff > 180.0 { diff = 360.0 - diff; }
+ if diff > hue_range {
+ let l = clampu8(0.299 * p.0[0] as f32 + 0.587 * p.0[1] as f32 + 0.114 * p.0[2] as f32);
+ p.0[0] = l; p.0[1] = l; p.0[2] = l;
+ }
+ }
+ out
+}
+
+/// Soft glow: screen-blend a blurred copy over the original by `intensity` (0..1).
+pub fn glow(img: &RgbaImage, sigma: f32, intensity: f32) -> RgbaImage {
+ let blurred = image::imageops::blur(img, sigma.max(0.1));
+ let mut out = img.clone();
+ let k = intensity.clamp(0.0, 1.0);
+ for (x, y, p) in out.enumerate_pixels_mut() {
+ let bl = blurred.get_pixel(x, y).0;
+ for c in 0..3 {
+ let base = p.0[c] as f32;
+ let b = bl[c] as f32;
+ let screen = 255.0 - (255.0 - base) * (255.0 - b) / 255.0;
+ p.0[c] = clampu8(base * (1.0 - k) + screen * k);
+ }
+ }
+ out
+}
+
+/// Draw a colored outline over detected edges, dilated by `thickness`.
+pub fn outline(img: &RgbaImage, thickness: u32, color: Color) -> RgbaImage {
+ let gray = crate::edges::sobel(img);
+ let (w, h) = (img.width(), img.height());
+ let r = thickness.max(1) as i32;
+ let mut out = img.clone();
+ for y in 0..h {
+ for x in 0..w {
+ let mut edge = false;
+ let mut dy = -r;
+ while dy <= r && !edge {
+ let mut dx = -r;
+ while dx <= r {
+ let nx = x as i32 + dx;
+ let ny = y as i32 + dy;
+ if nx >= 0 && ny >= 0 && (nx as u32) < w && (ny as u32) < h && gray.get_pixel(nx as u32, ny as u32).0[0] > 80 {
+ edge = true;
+ break;
+ }
+ dx += 1;
+ }
+ dy += 1;
+ }
+ if edge { out.put_pixel(x, y, Rgba([color.r, color.g, color.b, 255])); }
+ }
+ }
+ out
+}
+
+/// Horizontal glitch: split into `slices` bands, each shifted randomly up to `max_shift` px (wrap).
+pub fn slice(img: &RgbaImage, slices: u32, max_shift: i32) -> RgbaImage {
+ let (w, h) = (img.width(), img.height());
+ let mut out = img.clone();
+ let n = slices.max(1);
+ let band = (h / n).max(1);
+ let ms = max_shift.max(1);
+ for s in 0..n {
+ let shift = (rand::random::<i32>().rem_euclid(ms * 2 + 1)) - ms;
+ let y0 = s * band;
+ let y1 = if s == n - 1 { h } else { y0 + band };
+ for y in y0..y1 {
+ for x in 0..w {
+ let sx = ((x as i32 + shift).rem_euclid(w as i32)) as u32;
+ out.put_pixel(x, y, *img.get_pixel(sx, y));
+ }
+ }
+ }
+ out
+}
+
+/// Torn-paper edges: clear a jagged random-walk strip of alpha along the top and bottom.
+pub fn torn_edge(img: &RgbaImage, depth: u32) -> RgbaImage {
+ let (w, h) = (img.width(), img.height());
+ let mut out = img.clone();
+ let d = depth.max(1) as i32;
+ let mut top = rand::random::<u32>().rem_euclid(d as u32 + 1) as i32;
+ let mut bot = rand::random::<u32>().rem_euclid(d as u32 + 1) as i32;
+ for x in 0..w {
+ top = (top + rand::random::<i32>().rem_euclid(3) - 1).clamp(0, d);
+ bot = (bot + rand::random::<i32>().rem_euclid(3) - 1).clamp(0, d);
+ for y in 0..(top as u32).min(h) { let mut p = *out.get_pixel(x, y); p.0[3] = 0; out.put_pixel(x, y, p); }
+ for k in 0..(bot as u32).min(h) { let y = h - 1 - k; let mut p = *out.get_pixel(x, y); p.0[3] = 0; out.put_pixel(x, y, p); }
+ }
+ out
+}
+
+/// Wavy transparent edges: clear a sinusoidal strip of alpha along the left and right.
+pub fn wave_edge(img: &RgbaImage, amp: u32, period: f32) -> RgbaImage {
+ let (w, h) = (img.width(), img.height());
+ let mut out = img.clone();
+ let a = amp.max(1) as f32;
+ let per = period.max(1.0);
+ for y in 0..h {
+ let cut = (a * (1.0 + (y as f32 / per).sin()) / 2.0) as u32;
+ for x in 0..cut.min(w) { let mut p = *out.get_pixel(x, y); p.0[3] = 0; out.put_pixel(x, y, p); }
+ for k in 0..cut.min(w) { let x = w - 1 - k; let mut p = *out.get_pixel(x, y); p.0[3] = 0; out.put_pixel(x, y, p); }
+ }
+ out
+}
+
+/// Composite `mark` onto `base` at a corner (0=TL,1=TR,2=BL,3=BR) with `opacity` and `margin`.
+pub fn watermark_image(base: &RgbaImage, mark: &RgbaImage, corner: u8, opacity: f32, margin: u32) -> RgbaImage {
+ let mut out = base.clone();
+ let (bw, bh) = (base.width(), base.height());
+ let (mw, mh) = (mark.width(), mark.height());
+ if mw + margin > bw || mh + margin > bh { return out; }
+ let (ox, oy) = match corner {
+ 0 => (margin, margin),
+ 1 => (bw - mw - margin, margin),
+ 2 => (margin, bh - mh - margin),
+ _ => (bw - mw - margin, bh - mh - margin),
+ };
+ let k = opacity.clamp(0.0, 1.0);
+ for y in 0..mh {
+ for x in 0..mw {
+ let m = mark.get_pixel(x, y).0;
+ let ma = (m[3] as f32 / 255.0) * k;
+ if ma <= 0.0 { continue; }
+ let bx = ox + x;
+ let by = oy + y;
+ if bx >= bw || by >= bh { continue; }
+ let bp = out.get_pixel(bx, by).0;
+ let blended = [
+ clampu8(bp[0] as f32 * (1.0 - ma) + m[0] as f32 * ma),
+ clampu8(bp[1] as f32 * (1.0 - ma) + m[1] as f32 * ma),
+ clampu8(bp[2] as f32 * (1.0 - ma) + m[2] as f32 * ma),
+ bp[3],
+ ];
+ out.put_pixel(bx, by, Rgba(blended));
+ }
+ }
+ out
+}
+
+/// Append a faded, vertically-flipped reflection below the image (height = frac of original).
+pub fn reflection(img: &RgbaImage, frac: f32, opacity: f32) -> RgbaImage {
+ let (w, h) = (img.width(), img.height());
+ let rh = (((h as f32) * frac.clamp(0.05, 1.0)) as u32).max(1).min(h);
+ let mut out = RgbaImage::new(w, h + rh);
+ for y in 0..h { for x in 0..w { out.put_pixel(x, y, *img.get_pixel(x, y)); } }
+ for ry in 0..rh {
+ let src_y = h - 1 - ry;
+ let fade = opacity.clamp(0.0, 1.0) * (1.0 - ry as f32 / rh as f32);
+ for x in 0..w {
+ let p = img.get_pixel(x, src_y).0;
+ out.put_pixel(x, h + ry, Rgba([p[0], p[1], p[2], clampu8(p[3] as f32 * fade)]));
+ }
+ }
+ out
+}
+
+/// Drop shadow: expand the canvas and render a blurred, offset silhouette behind the image.
+pub fn shadow(img: &RgbaImage, dx: i32, dy: i32, sigma: f32, color: Color) -> RgbaImage {
+ let (w, h) = (img.width(), img.height());
+ let pad = ((sigma as i32) * 3 + dx.abs().max(dy.abs()) + 8).max(1) as u32;
+ let nw = w + pad * 2;
+ let nh = h + pad * 2;
+ let mut sil = RgbaImage::new(nw, nh);
+ for y in 0..h {
+ for x in 0..w {
+ let a = img.get_pixel(x, y).0[3];
+ let px = x as i32 + pad as i32 + dx;
+ let py = y as i32 + pad as i32 + dy;
+ if px >= 0 && py >= 0 && (px as u32) < nw && (py as u32) < nh {
+ sil.put_pixel(px as u32, py as u32, Rgba([color.r, color.g, color.b, a]));
+ }
+ }
+ }
+ let mut out = image::imageops::blur(&sil, sigma.max(0.1));
+ for y in 0..h {
+ for x in 0..w {
+ let p = img.get_pixel(x, y).0;
+ let ox = x + pad;
+ let oy = y + pad;
+ let sp = out.get_pixel(ox, oy).0;
+ let fa = p[3] as f32 / 255.0;
+ let blended = [
+ clampu8(sp[0] as f32 * (1.0 - fa) + p[0] as f32 * fa),
+ clampu8(sp[1] as f32 * (1.0 - fa) + p[1] as f32 * fa),
+ clampu8(sp[2] as f32 * (1.0 - fa) + p[2] as f32 * fa),
+ (sp[3] as u32).max(p[3] as u32).min(255) as u8,
+ ];
+ out.put_pixel(ox, oy, Rgba(blended));
+ }
+ }
+ out
+}
+
+/// Polaroid-style white frame (thicker at the bottom).
+pub fn polaroid(img: &RgbaImage, border: u32, bottom: u32) -> RgbaImage {
+ let (w, h) = (img.width(), img.height());
+ let mut out = RgbaImage::from_pixel(w + border * 2, h + border + bottom, Rgba([255, 255, 255, 255]));
+ image::imageops::replace(&mut out, img, border as i64, border as i64);
+ out
+}
+
+#[cfg(test)]
+mod effect2_tests {
+ use super::*;
+ fn sample() -> RgbaImage {
+ let mut i = RgbaImage::new(12, 12);
+ for (x, y, p) in i.enumerate_pixels_mut() { *p = Rgba([(x * 20) as u8, (y * 20) as u8, 128, 255]); }
+ i
+ }
+ #[test]
+ fn same_dim_effects() {
+ assert_eq!(rgb_split(&sample(), 2).dimensions(), (12, 12));
+ assert_eq!(selective_color(&sample(), 200.0, 30.0).dimensions(), (12, 12));
+ assert_eq!(glow(&sample(), 3.0, 0.5).dimensions(), (12, 12));
+ assert_eq!(outline(&sample(), 1, Color::rgba(255, 0, 0, 255)).dimensions(), (12, 12));
+ assert_eq!(slice(&sample(), 3, 4).dimensions(), (12, 12));
+ assert_eq!(torn_edge(&sample(), 3).dimensions(), (12, 12));
+ assert_eq!(wave_edge(&sample(), 3, 5.0).dimensions(), (12, 12));
+ }
+ #[test]
+ fn replace_color_hits_target() {
+ let mut img = RgbaImage::from_pixel(4, 4, Rgba([10, 10, 10, 255]));
+ img.put_pixel(0, 0, Rgba([250, 0, 0, 255]));
+ let out = replace_color(&img, Color::rgba(255, 0, 0, 255), Color::rgba(0, 255, 0, 255), 20);
+ assert_eq!(out.get_pixel(0, 0).0, [0, 255, 0, 255]);
+ assert_eq!(out.get_pixel(1, 1).0, [10, 10, 10, 255]);
+ }
+ #[test]
+ fn dim_changing_effects() {
+ let r = reflection(&sample(), 0.5, 0.6);
+ assert_eq!(r.dimensions(), (12, 18));
+ let s = shadow(&sample(), 6, 6, 4.0, Color::rgba(0, 0, 0, 255));
+ assert!(s.width() > 12 && s.height() > 12);
+ let p = polaroid(&sample(), 8, 24);
+ assert_eq!(p.dimensions(), (28, 44));
+ }
+ #[test]
+ fn watermark_composites() {
+ let base = RgbaImage::from_pixel(40, 40, Rgba([0, 0, 0, 255]));
+ let mark = RgbaImage::from_pixel(8, 8, Rgba([255, 255, 255, 255]));
+ let out = watermark_image(&base, &mark, 3, 1.0, 2);
+ assert_eq!(out.get_pixel(39 - 2 - 4, 39 - 2 - 4).0[0], 255);
+ assert_eq!(out.get_pixel(0, 0).0[0], 0);
+ }
+}

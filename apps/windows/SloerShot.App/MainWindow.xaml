@@ -261,6 +261,19 @@ Title="SloerShot">
 <MenuFlyoutItem Text="Hue rotate" Tag="hue" Click="OnEffectMenu" />
 <MenuFlyoutItem Text="More saturation" Tag="saturate" Click="OnEffectMenu" />
 <MenuFlyoutItem Text="Less saturation" Tag="desaturate" Click="OnEffectMenu" />
+<MenuFlyoutSeparator />
+<MenuFlyoutItem Text="Glow" Tag="glow" Click="OnEffectMenu" />
+<MenuFlyoutItem Text="Outline" Tag="outline" Click="OnEffectMenu" />
+<MenuFlyoutItem Text="Drop shadow" Tag="shadow" Click="OnEffectMenu" />
+<MenuFlyoutItem Text="Reflection" Tag="reflection" Click="OnEffectMenu" />
+<MenuFlyoutItem Text="Polaroid frame" Tag="polaroid" Click="OnEffectMenu" />
+<MenuFlyoutItem Text="RGB split" Tag="rgb_split" Click="OnEffectMenu" />
+<MenuFlyoutItem Text="Selective color" Tag="selective_color" Click="OnEffectMenu" />
+<MenuFlyoutItem Text="Slice glitch" Tag="slice" Click="OnEffectMenu" />
+<MenuFlyoutItem Text="Torn edges" Tag="torn_edge" Click="OnEffectMenu" />
+<MenuFlyoutItem Text="Wave edges" Tag="wave_edge" Click="OnEffectMenu" />
+<MenuFlyoutItem Text="Replace white with black" Tag="replace_white" Click="OnEffectMenu" />
+<MenuFlyoutItem Text="Watermark image..." Click="OnWatermarkImage" />
 </MenuFlyout>
 </DropDownButton.Flyout>
 </DropDownButton>

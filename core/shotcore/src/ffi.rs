@@ -1061,6 +1061,36 @@ pub extern "C" fn shotcore_fx_apply(
  "emboss" => crate::fx::emboss(&base),
  "edge" => crate::fx::edge_detect(&base),
  "sharpen" => crate::fx::sharpen(&base, num("amount", 1.0) as f32),
+ "rgb_split" => crate::fx::rgb_split(&base, num("offset", 3.0) as i32),
+ "selective_color" => crate::fx::selective_color(&base, num("hue", 0.0) as f32, num("range", 30.0) as f32),
+ "glow" => crate::fx::glow(&base, num("sigma", 6.0) as f32, num("intensity", 0.6) as f32),
+ "slice" => crate::fx::slice(&base, num("slices", 8.0) as u32, num("max_shift", 12.0) as i32),
+ "torn_edge" => crate::fx::torn_edge(&base, num("depth", 12.0) as u32),
+ "wave_edge" => crate::fx::wave_edge(&base, num("amp", 10.0) as u32, num("period", 20.0) as f32),
+ "reflection" => crate::fx::reflection(&base, num("frac", 0.4) as f32, num("opacity", 0.5) as f32),
+ "polaroid" => crate::fx::polaroid(&base, num("border", 16.0) as u32, num("bottom", 56.0) as u32),
+ "outline" => {
+ let co = v.get("color");
+ let cho = |k: &str, d: u64| co.and_then(|o| o.get(k)).and_then(|x| x.as_u64()).unwrap_or(d) as u8;
+ crate::fx::outline(&base, num("thickness", 2.0) as u32, crate::model::Color::rgba(cho("r", 255), cho("g", 80), cho("b", 0), 255))
+ }
+ "shadow" => {
+ let cs = v.get("color");
+ let chs = |k: &str, d: u64| cs.and_then(|o| o.get(k)).and_then(|x| x.as_u64()).unwrap_or(d) as u8;
+ crate::fx::shadow(&base, num("dx", 8.0) as i32, num("dy", 8.0) as i32, num("sigma", 6.0) as f32, crate::model::Color::rgba(chs("r", 0), chs("g", 0), chs("b", 0), 255))
+ }
+ "replace_color" => {
+ let cf = v.get("from");
+ let ct = v.get("to");
+ let chf = |k: &str, d: u64| cf.and_then(|o| o.get(k)).and_then(|x| x.as_u64()).unwrap_or(d) as u8;
+ let cht = |k: &str, d: u64| ct.and_then(|o| o.get(k)).and_then(|x| x.as_u64()).unwrap_or(d) as u8;
+ crate::fx::replace_color(&base, crate::model::Color::rgba(chf("r", 255), chf("g", 255), chf("b", 255), 255), crate::model::Color::rgba(cht("r", 0), cht("g", 0), cht("b", 0), 255), num("tol", 30.0) as i32)
+ }
+ "watermark_image" => {
+ let mp = match v.get("mark_path").and_then(|x| x.as_str()) { Some(s) => s, None => return ERR_ARG };
+ let mark = match image::open(mp) { Ok(i) => i.to_rgba8(), Err(_) => return ERR_IMAGE };
+ crate::fx::watermark_image(&base, &mark, num("corner", 3.0) as u8, num("opacity", 0.7) as f32, num("margin", 12.0) as u32)
+ }
  "colorize" => {
  let cc = v.get("color");
  let chc = |k: &str, d: u64| cc.and_then(|o| o.get(k)).and_then(|x| x.as_u64()).unwrap_or(d) as u8;
@@ -2437,5 +2467,47 @@ mod tools_ffi_tests {
  assert!(dir.join("tile-r0-c0.png").exists());
  assert!(dir.join("tile-r1-c1.png").exists());
  let _ = std::fs::remove_dir_all(&dir);
+ }
+}
+
+#[cfg(test)]
+mod fx_effects2_ffi_tests {
+ use super::*;
+ use std::ffi::CString;
+ use image::{Rgba, RgbaImage};
+ #[test]
+ fn block_b_ops_apply_over_ffi() {
+ let dir = std::env::temp_dir();
+ let inp = dir.join("shotcore_fxb_in.png");
+ let outp = dir.join("shotcore_fxb_out.png");
+ let markp = dir.join("shotcore_fxb_mark.png");
+ RgbaImage::from_pixel(24, 24, Rgba([200, 100, 50, 255])).save(&inp).unwrap();
+ RgbaImage::from_pixel(6, 6, Rgba([255, 255, 255, 255])).save(&markp).unwrap();
+ let i = CString::new(inp.to_str().unwrap()).unwrap();
+ let o = CString::new(outp.to_str().unwrap()).unwrap();
+ let ops = [
+ "{\"op\":\"rgb_split\",\"offset\":2}",
+ "{\"op\":\"selective_color\",\"hue\":200,\"range\":30}",
+ "{\"op\":\"glow\",\"sigma\":3,\"intensity\":0.5}",
+ "{\"op\":\"outline\",\"thickness\":1,\"color\":{\"r\":255,\"g\":0,\"b\":0}}",
+ "{\"op\":\"slice\",\"slices\":3,\"max_shift\":4}",
+ "{\"op\":\"torn_edge\",\"depth\":3}",
+ "{\"op\":\"wave_edge\",\"amp\":3,\"period\":5}",
+ "{\"op\":\"reflection\",\"frac\":0.4,\"opacity\":0.5}",
+ "{\"op\":\"shadow\",\"dx\":6,\"dy\":6,\"sigma\":3}",
+ "{\"op\":\"polaroid\",\"border\":8,\"bottom\":20}",
+ "{\"op\":\"replace_color\",\"from\":{\"r\":200,\"g\":100,\"b\":50},\"to\":{\"r\":0,\"g\":255,\"b\":0},\"tol\":40}",
+ ];
+ for op in ops {
+ let c = CString::new(op).unwrap();
+ assert_eq!(shotcore_fx_apply(i.as_ptr(), o.as_ptr(), c.as_ptr()), OK, "op failed: {}", op);
+ assert!(image::open(&outp).is_ok());
+ }
+ let wm = format!("{{\"op\":\"watermark_image\",\"mark_path\":\"{}\",\"corner\":3,\"opacity\":1.0,\"margin\":2}}", markp.to_str().unwrap().replace("\\", "/"));
+ let c = CString::new(wm).unwrap();
+ assert_eq!(shotcore_fx_apply(i.as_ptr(), o.as_ptr(), c.as_ptr()), OK);
+ let _ = std::fs::remove_file(&inp);
+ let _ = std::fs::remove_file(&outp);
+ let _ = std::fs::remove_file(&markp);
  }
 }

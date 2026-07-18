@@ -999,6 +999,23 @@ StatusText.Text = "Uploaded - link copied: " + outcome.Url;
 }
 catch (Exception ex) { StatusText.Text = "Upload error: " + ex.Message; }
 }
+private async void OnWatermarkImage(object sender, RoutedEventArgs e)
+{
+try
+{
+if (_lastCapturePath == null || !File.Exists(_lastCapturePath)) { StatusText.Text = "Capture or open an image first."; return; }
+var picker = new Windows.Storage.Pickers.FileOpenPicker();
+picker.FileTypeFilter.Add(".png"); picker.FileTypeFilter.Add(".jpg"); picker.FileTypeFilter.Add(".jpeg");
+var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+var mark = await picker.PickSingleFileAsync();
+if (mark == null) return;
+var mp = mark.Path.Replace("\\", "/");
+var op = "{\"op\":\"watermark_image\",\"mark_path\":\"" + mp + "\",\"corner\":3,\"opacity\":0.75,\"margin\":16}";
+ApplyFx(op, "Watermark");
+}
+catch (Exception ex) { StatusText.Text = "Watermark error: " + ex.Message; }
+}
 private void OnBgPreset(object sender, RoutedEventArgs e) { var tg = (sender as FrameworkElement)?.Tag as string; if (tg != null) { _bgPreset = tg; _bgType = "gradient"; if (BgTypeCombo != null) BgTypeCombo.SelectedIndex = 0; StatusText.Text = "Gradient: " + tg; } }
 private void OnBgColorSwatch(object sender, RoutedEventArgs e) { var hex = (sender as FrameworkElement)?.Tag as string; if (hex != null && hex.Length >= 6) { try { _bgColor = (Convert.ToByte(hex.Substring(0, 2), 16), Convert.ToByte(hex.Substring(2, 2), 16), Convert.ToByte(hex.Substring(4, 2), 16)); _bgType = "color"; if (BgTypeCombo != null) BgTypeCombo.SelectedIndex = 1; } catch { } } }
 private void OnBgTypeChanged(object sender, SelectionChangedEventArgs e) { if ((sender as ComboBox)?.SelectedItem is ComboBoxItem it && it.Content is string sv) _bgType = sv.ToLowerInvariant(); }
@@ -1204,6 +1221,17 @@ case "gamma_down": return "{\"op\":\"gamma\",\"gamma\":0.7}";
 case "hue": return "{\"op\":\"hue\",\"degrees\":90}";
 case "saturate": return "{\"op\":\"saturation\",\"factor\":1.6}";
 case "desaturate": return "{\"op\":\"saturation\",\"factor\":0.4}";
+case "rgb_split": return "{\"op\":\"rgb_split\",\"offset\":3}";
+case "selective_color": return "{\"op\":\"selective_color\",\"hue\":0,\"range\":30}";
+case "glow": return "{\"op\":\"glow\",\"sigma\":6,\"intensity\":0.6}";
+case "slice": return "{\"op\":\"slice\",\"slices\":8,\"max_shift\":12}";
+case "torn_edge": return "{\"op\":\"torn_edge\",\"depth\":12}";
+case "wave_edge": return "{\"op\":\"wave_edge\",\"amp\":10,\"period\":20}";
+case "reflection": return "{\"op\":\"reflection\",\"frac\":0.4,\"opacity\":0.5}";
+case "shadow": return "{\"op\":\"shadow\",\"dx\":10,\"dy\":10,\"sigma\":8,\"color\":{\"r\":0,\"g\":0,\"b\":0}}";
+case "polaroid": return "{\"op\":\"polaroid\",\"border\":16,\"bottom\":56}";
+case "outline": return "{\"op\":\"outline\",\"thickness\":2,\"color\":{\"r\":255,\"g\":80,\"b\":0}}";
+case "replace_white": return "{\"op\":\"replace_color\",\"from\":{\"r\":255,\"g\":255,\"b\":255},\"to\":{\"r\":0,\"g\":0,\"b\":0},\"tol\":40}";
 default: return null;
 }
 }

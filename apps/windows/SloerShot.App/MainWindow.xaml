@@ -291,6 +291,11 @@ Title="SloerShot">
 <MenuFlyoutItem Text="Generate QR code..." Click="OnQrTool" />
 <MenuFlyoutSeparator />
 <MenuFlyoutItem Text="Workflows and hotkeys..." Click="OnWorkflows" />
+<MenuFlyoutSeparator />
+<MenuFlyoutItem Text="Screen color picker..." Click="OnColorPicker" />
+<MenuFlyoutItem Text="Screen ruler..." Click="OnScreenRuler" />
+<MenuFlyoutItem Text="External actions..." Click="OnActions" />
+<MenuFlyoutItem Text="Create thumbnail..." Click="OnThumbnail" />
 </MenuFlyout>
 </DropDownButton.Flyout>
 </DropDownButton>

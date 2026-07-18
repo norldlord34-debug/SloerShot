@@ -31,6 +31,7 @@ public string UrlShortener { get; set; } = "none";
 public string CustomShortenerConfig { get; set; } = "";
 public List<EffectPreset> EffectPresets { get; set; } = new();
 public List<Workflow> Workflows { get; set; } = new();
+public List<ExternalAction> ExternalActions { get; set; } = new();
 private void MergeBuiltInDestinations()
 {
 var seeded = BuiltInDestinations.Seed();
@@ -109,6 +110,7 @@ if (Format != "jpg") Format = "png";
 if (Destinations == null) Destinations = new List<UploadDestination>();
 if (EffectPresets == null) EffectPresets = new List<EffectPreset>();
 if (Workflows == null) Workflows = new List<Workflow>();
+if (ExternalActions == null) ExternalActions = new List<ExternalAction>();
 MergeBuiltInDestinations();
 if (string.IsNullOrWhiteSpace(ActiveDestinationId) || Destinations.TrueForAll(d => d.Id != ActiveDestinationId)) ActiveDestinationId = Destinations[0].Id;
 return this;

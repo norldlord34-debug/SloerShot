@@ -1159,6 +1159,111 @@ var dlg = new ContentDialog { Title = "Workflows", Content = new ScrollViewer { 
 await dlg.ShowAsync();
 _settings.Fixup(); _settings.Save(); RegisterCaptureHotkey(); StatusText.Text = "Workflows updated.";
 }
+private async void OnColorPicker(object sender, RoutedEventArgs e)
+{
+var swatch = new Border { Width = 80, Height = 80, CornerRadius = new CornerRadius(8), BorderThickness = new Thickness(1), BorderBrush = new SolidColorBrush(Microsoft.UI.Colors.Gray) };
+var hexText = new TextBox { IsReadOnly = true, MinWidth = 160, FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas") };
+var rgbText = new TextBlock();
+string currentHex = "#000000";
+var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(60) };
+timer.Tick += (s, e2) =>
+{
+try
+{
+var p = ScreenColor.Cursor();
+var (r, g, b) = ScreenColor.PixelAt(p.X, p.Y);
+swatch.Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, r, g, b));
+currentHex = "#" + r.ToString("X2") + g.ToString("X2") + b.ToString("X2");
+hexText.Text = currentHex;
+rgbText.Text = "RGB " + r + ", " + g + ", " + b + " at " + p.X + ", " + p.Y;
+}
+catch { }
+};
+timer.Start();
+var panel = new StackPanel { Spacing = 10 };
+panel.Children.Add(new TextBlock { Text = "Move the mouse over any pixel on screen; the color updates live.", TextWrapping = TextWrapping.Wrap, MaxWidth = 320 });
+var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+row.Children.Add(swatch);
+var col2 = new StackPanel { Spacing = 6 }; col2.Children.Add(hexText); col2.Children.Add(rgbText); row.Children.Add(col2);
+panel.Children.Add(row);
+var dlg = new ContentDialog { Title = "Screen color picker", Content = panel, PrimaryButtonText = "Copy hex", CloseButtonText = "Close", XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+var res = await dlg.ShowAsync();
+timer.Stop();
+if (res == ContentDialogResult.Primary) { var dp = new DataPackage(); dp.SetText(currentHex); Clipboard.SetContent(dp); StatusText.Text = "Color copied: " + currentHex; }
+}
+private async void OnScreenRuler(object sender, RoutedEventArgs e)
+{
+var posText = new TextBlock();
+var deltaText = new TextBlock();
+int ax = 0; int ay = 0; bool hasAnchor = false;
+var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(60) };
+timer.Tick += (s, e2) =>
+{
+var p = ScreenColor.Cursor();
+posText.Text = "Cursor: " + p.X + ", " + p.Y;
+if (hasAnchor) { int dx = p.X - ax; int dy = p.Y - ay; double dist = Math.Sqrt(dx * (double)dx + dy * (double)dy); double ang = Math.Atan2(dy, dx) * 180.0 / Math.PI; deltaText.Text = "dx=" + dx + " dy=" + dy + " dist=" + dist.ToString("0.0") + " angle=" + ang.ToString("0.0"); }
+};
+timer.Start();
+var anchorBtn = new Button { Content = "Set anchor at cursor" };
+anchorBtn.Click += (s, e2) => { var p = ScreenColor.Cursor(); ax = p.X; ay = p.Y; hasAnchor = true; };
+var panel = new StackPanel { Spacing = 10, MinWidth = 340 };
+panel.Children.Add(new TextBlock { Text = "Live cursor position. Set an anchor, then move to measure distance.", TextWrapping = TextWrapping.Wrap });
+panel.Children.Add(posText); panel.Children.Add(deltaText); panel.Children.Add(anchorBtn);
+var dlg = new ContentDialog { Title = "Screen ruler", Content = panel, CloseButtonText = "Close", XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+await dlg.ShowAsync();
+timer.Stop();
+}
+private async void OnThumbnail(object sender, RoutedEventArgs e)
+{
+if (_lastCapturePath == null || !File.Exists(_lastCapturePath)) { StatusText.Text = "Capture or open an image first."; return; }
+var box = new NumberBox { Header = "Max dimension (px)", Value = 320, Minimum = 16, Maximum = 4096, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Inline };
+var dlg = new ContentDialog { Title = "Create thumbnail", Content = box, PrimaryButtonText = "Create", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+if (await dlg.ShowAsync() != ContentDialogResult.Primary) return;
+int maxDim = Math.Max(16, (int)box.Value);
+int w = _imgW; int h = _imgH;
+if (w <= 0 || h <= 0) { w = maxDim; h = maxDim; }
+double scale = Math.Min(1.0, (double)maxDim / Math.Max(w, h));
+int nw = Math.Max(1, (int)(w * scale)); int nh = Math.Max(1, (int)(h * scale));
+ApplyFx("{\"op\":\"resize\",\"w\":" + nw + ",\"h\":" + nh + "}", "Thumbnail");
+}
+private void RunAction(Services.ExternalAction a)
+{
+if (_lastCapturePath == null || !File.Exists(_lastCapturePath)) { StatusText.Text = "Capture something first."; return; }
+try
+{
+var args = (a.Arguments ?? "").Replace("{input}", _lastCapturePath);
+System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = a.Program, Arguments = args, UseShellExecute = true });
+StatusText.Text = "Ran action: " + a.Name;
+}
+catch (Exception ex) { StatusText.Text = "Action failed: " + ex.Message; }
+}
+private async void OnActions(object sender, RoutedEventArgs e)
+{
+var list = new ListView { SelectionMode = ListViewSelectionMode.Single, MaxHeight = 160, MinWidth = 460 };
+var nameBox = new TextBox { PlaceholderText = "Name", MinWidth = 200 };
+var progBox = new TextBox { PlaceholderText = "Program (e.g. mspaint.exe)", MinWidth = 300 };
+var argsBox = new TextBox { PlaceholderText = "Arguments, use {input} for the file", Text = "\"{input}\"", MinWidth = 300 };
+var browse = new Button { Content = "Browse" };
+browse.Click += async (s, e2) => { try { var pk = new Windows.Storage.Pickers.FileOpenPicker(); pk.FileTypeFilter.Add(".exe"); pk.FileTypeFilter.Add("*"); var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this); WinRT.Interop.InitializeWithWindow.Initialize(pk, hwnd); var fpk = await pk.PickSingleFileAsync(); if (fpk != null) progBox.Text = fpk.Path; } catch { } };
+void Refresh() { list.Items.Clear(); foreach (var a in _settings.ExternalActions) list.Items.Add(new ListViewItem { Content = a.Name + " -> " + a.Program, Tag = a.Id }); }
+Services.ExternalAction? Selected() { var id = (list.SelectedItem as ListViewItem)?.Tag as string; return id == null ? null : _settings.ExternalActions.Find(a => a.Id == id); }
+void WriteEditor(Services.ExternalAction a) { nameBox.Text = a.Name; progBox.Text = a.Program; argsBox.Text = a.Arguments; }
+void ReadEditor(Services.ExternalAction a) { a.Name = string.IsNullOrWhiteSpace(nameBox.Text) ? "Action" : nameBox.Text; a.Program = progBox.Text ?? ""; a.Arguments = argsBox.Text ?? ""; }
+list.SelectionChanged += (s, e2) => { var a = Selected(); if (a != null) WriteEditor(a); };
+var addBtn = new Button { Content = "Add" }; addBtn.Click += (s, e2) => { var a = new Services.ExternalAction(); ReadEditor(a); _settings.ExternalActions.Add(a); Refresh(); };
+var updBtn = new Button { Content = "Update" }; updBtn.Click += (s, e2) => { var a = Selected(); if (a != null) { ReadEditor(a); Refresh(); } };
+var remBtn = new Button { Content = "Remove" }; remBtn.Click += (s, e2) => { var a = Selected(); if (a != null) { _settings.ExternalActions.Remove(a); Refresh(); } };
+var runBtn = new Button { Content = "Run on current" }; runBtn.Click += (s, e2) => { var a = Selected(); if (a != null) RunAction(a); };
+Refresh();
+var progRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 }; progRow.Children.Add(progBox); progRow.Children.Add(browse);
+var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 }; btnRow.Children.Add(addBtn); btnRow.Children.Add(updBtn); btnRow.Children.Add(remBtn); btnRow.Children.Add(runBtn);
+var panel = new StackPanel { Spacing = 8, MinWidth = 470 };
+panel.Children.Add(new TextBlock { Text = "External programs run on the current capture. Use {input} for the file path.", TextWrapping = TextWrapping.Wrap });
+panel.Children.Add(list); panel.Children.Add(nameBox); panel.Children.Add(progRow); panel.Children.Add(argsBox); panel.Children.Add(btnRow);
+var dlg = new ContentDialog { Title = "External actions", Content = new ScrollViewer { Content = panel, MaxHeight = 520 }, PrimaryButtonText = "Done", XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+await dlg.ShowAsync();
+_settings.Save(); StatusText.Text = "Actions updated.";
+}
 private void OnBgPreset(object sender, RoutedEventArgs e) { var tg = (sender as FrameworkElement)?.Tag as string; if (tg != null) { _bgPreset = tg; _bgType = "gradient"; if (BgTypeCombo != null) BgTypeCombo.SelectedIndex = 0; StatusText.Text = "Gradient: " + tg; } }
 private void OnBgColorSwatch(object sender, RoutedEventArgs e) { var hex = (sender as FrameworkElement)?.Tag as string; if (hex != null && hex.Length >= 6) { try { _bgColor = (Convert.ToByte(hex.Substring(0, 2), 16), Convert.ToByte(hex.Substring(2, 2), 16), Convert.ToByte(hex.Substring(4, 2), 16)); _bgType = "color"; if (BgTypeCombo != null) BgTypeCombo.SelectedIndex = 1; } catch { } } }
 private void OnBgTypeChanged(object sender, SelectionChangedEventArgs e) { if ((sender as ComboBox)?.SelectedItem is ComboBoxItem it && it.Content is string sv) _bgType = sv.ToLowerInvariant(); }

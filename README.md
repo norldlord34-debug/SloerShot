@@ -11,8 +11,10 @@ subscription licensing.
 
 This repository proves the hard part end to end: the cross-platform core is fully
 implemented and unit-tested, a runnable CLI exercises the whole pipeline, and a Node
-backend issues subscription entitlements that the core verifies offline. The native
-UI shells are scaffolded with their core bindings already written.
+backend issues subscription entitlements that the core verifies offline. Both native
+UI shells are fully implemented on top of that core and built in CI: the Windows app
+(WinUI 3) and the macOS app (SwiftUI) are at feature parity - uploads, after-capture /
+after-upload pipeline, effects studio, configurable workflows, and global hotkeys.
 
 ## ShareX-parity features (v0.4.0+)
 
@@ -35,7 +37,7 @@ The Windows app (WinUI 3) covers ShareX-class power, all over the shared tested 
 - `SloerShot.exe --upload <file>` (alias `-u`)
 - `SloerShot.exe <image-file>` opens it in the editor
 
-macOS (SwiftUI) shares the same core and exposes the File Hashes / QR / Folder Index / Split tools from the menu bar.
+macOS (SwiftUI) shares the same core and is at parity with the Windows app: the upload engine (URLSession) with the same built-in destinations, the after-capture / after-upload pipeline (auto copy/upload, open URL, QR, is.gd / TinyURL shortening), the Effects studio with live preview + presets, configurable Workflows, and global hotkeys (Carbon), plus the File Hashes / QR / Folder Index / Split tools from the menu bar.
 
 ## Quickstart
 ```
@@ -46,7 +48,7 @@ cd SloerShot
 cargo test -p shotcore
 cargo run -p shotcli -- demo --out assets/out
 
-# Backend: install + test
+# Backend: install + test (share + upload-engine + auth/Stripe smoke tests)
 npm install --prefix backend; npm test --prefix backend
 
 # Windows GUI (needs the .NET SDK + Windows App SDK)
@@ -60,11 +62,11 @@ dotnet build apps/windows/SloerShot.App/SloerShot.App.csproj -c Debug
 
 | Component | Language | State | Verified in this build |
 | --- | --- | --- | --- |
-| shotcore (shared core) | Rust | Implemented | 341 unit + 1 integration test pass |
+| shotcore (shared core) | Rust | Implemented | 382 unit + 1 integration test pass |
 | shotcli (demo CLI) | Rust | Implemented | Full pipeline demo + 25-module parity demo (incl. QR round-trip) |
-| backend (auth + entitlements) | Node | Implemented | 40 tests pass (share + login + Stripe webhook); tokens verified by the core |
-| Windows app | C# / WinUI 3 | Builds + runs | capture->annotate->effects->save UI; launches here (window verified); binding/capture/parser verified by the smoke test, fx verified via P/Invoke |
-| macOS app | Swift / SwiftUI | Code-ready | Compiles on macOS + Xcode (not built here) |
+| backend (auth + entitlements) | Node | Implemented | 49 tests pass (share + upload engine + login + Stripe webhook); tokens verified by the core |
+| Windows app | C# / WinUI 3 | Builds + runs | capture->annotate->effects->save UI; launches here (window verified); binding/capture/parser verified by the smoke test, fx verified via P/Invoke; built in CI |
+| macOS app | Swift / SwiftUI | Builds in CI | swift build -c release on the GitHub Actions macOS runner (green); at feature parity with Windows |
 
 The Windows shell now builds here: the WinUI 3 app compiles with the .NET SDK and
 Windows App SDK 1.6, and the C# to Rust binding is verified end to end by a runnable
@@ -83,8 +85,8 @@ sloershot/
  editor, detect, pin, fx, ffi
  include/shotcore.h canonical C ABI header
  apps/cli/ shotcli demo binary (Rust)
- apps/windows/ WinUI 3 app (C#) - scaffold
- apps/macos/ SwiftUI app (Swift) - scaffold
+ apps/windows/ WinUI 3 app (C#) - full app, builds in CI
+ apps/macos/ SwiftUI app (Swift) - full app, builds in CI
  backend/ Node service: auth, Stripe, entitlements
  assets/out/ demo artifacts produced by shotcli
 ```
@@ -173,7 +175,7 @@ cargo build --release -p shotcore # produces target/release/shotcore.dll (or .dy
 
 # Start the backend, then issue and verify an entitlement
 npm install --prefix backend
-# Run the backend test suite (share + login + Stripe webhook; 40 checks)
+# Run the backend test suite (share + upload engine + login + Stripe webhook; 49 checks)
 npm test --prefix backend
 node backend/src/server.js
 ```
@@ -184,8 +186,10 @@ core with: cargo run -p shotcli -- verify-license --pubkey HEX --token TOKEN --n
 
 ## Native shells
 
-Both shells already include a complete binding layer to the core and a minimal
-window that displays the live core version. On Windows, capture, the annotation canvas, and the effects toolbar are implemented and the app runs; on macOS these remain to be built on a Mac.
+Both shells include a complete binding layer to the core and full feature UIs, and
+both build in CI. On Windows, capture, the annotation canvas, the effects toolbar, the
+upload engine, workflows, and the fullscreen color-picker / ruler overlays are
+implemented and the app runs; macOS is at parity and builds on the GitHub Actions macOS runner.
 
 - Windows (apps/windows/SloerShot.App): WinUI 3 on .NET 8. Interop/ShotCore.cs wraps
     the full C ABI (stateless calls plus a stateful editor handle) via P/Invoke. Capture/FrozenScreenCapture.cs implements GDI frozen-screen capture and NativeScreen.cs enumerates monitors (both verified by the console smoke test). Editor/AnnotationCanvas.cs renders the core render_json as XAML shapes and forwards pointer events to the shared editor handle; Editor/AnnotationParser.cs (verified by the smoke test) parses it. MainWindow wires a full capture -> annotate -> apply effects -> save (flatten via the core) flow, with an Effects toolbar (grayscale, sepia, invert, blur, vignette, brighten, contrast, rotate, flip, border, spotlight) calling shotcore_fx_apply on the captured image. The .csproj copies
@@ -193,15 +197,18 @@ window that displays the live core version. On Windows, capture, the annotation 
 - macOS (apps/macos): SwiftPM package. Sources/CShotCore exposes the C header to
     Swift; Sources/SloerShot/ShotCore.swift + ShotCoreExtras.swift wrap the full C ABI; ContentView shows the
     core version. Capture (ScreenCaptureKit/SCScreenshotManager), the annotation canvas, an area-selection overlay, the 9-tool editor, and a MenuBarExtra app are implemented (apps/macos/Sources/SloerShot/*.swift); verify on a Mac with swift build or Xcode. Native feature controllers RecordingController.swift (ScreenCaptureKit + AVAssetWriter), OcrService.swift (Vision), PinPanel.swift (always-on-top NSPanel) and CloudClient.swift (URLSession) call the shared core, matching the Windows controllers. Scanner.swift chains corners + perspective unwarp to auto-flatten documents, scans QR/EAN-13, and sharpens - all via the shared core. Build: swift build, or open
-    in Xcode for a full app bundle.
+    in Xcode for a full app bundle. The macOS app is built in CI (swift build -c release)
+    on the GitHub Actions macOS runner and is at feature parity with the Windows app.
 
 ## Backend
 
 Node service (backend/) issuing ed25519-signed entitlements that match the core
 validator byte for byte. Endpoints: GET /health, GET /v1/public-key, POST
 /v1/auth/login (stub), POST /v1/entitlement, POST /v1/stripe/webhook (HMAC-SHA256
-signature check). The signing key is generated and persisted on first run under
-backend/keys/ (git-ignored).
+signature check), POST /v1/upload (binary image hosting) + GET /f/:name, and the
+/v1/share link endpoints. The signing key is generated and persisted on first run under
+backend/keys/ (git-ignored). The upload path is smoke-tested end to end in CI
+(backend/scripts/test-upload-http.js).
 
 Security notes:
 

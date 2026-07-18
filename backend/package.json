@@ -7,7 +7,7 @@
     "scripts": {
         "start": "node src/server.js",
         "issue-demo": "node scripts/issue-demo.js",
- "test": "node scripts/test-share.js && node scripts/test-share-http.js && node scripts/test-auth.js"
+ "test": "node scripts/test-share.js && node scripts/test-share-http.js && node scripts/test-upload-http.js && node scripts/test-auth.js"
     },
     "dependencies": {
         "dotenv": "^16.4.5",

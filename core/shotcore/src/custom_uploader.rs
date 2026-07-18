@@ -409,4 +409,43 @@ mod tests {
  let links = resolve_response(&cfg, "https://is.gd/abcd", &BTreeMap::new(), "https://h.test/f/abc.png", "");
  assert_eq!(links.url, "https://is.gd/abcd");
  }
+
+ #[test]
+ fn builtin_catbox_config() {
+ let cfg_json = "{\"Name\":\"catbox.moe\",\"RequestMethod\":\"POST\",\"RequestURL\":\"https://catbox.moe/user/api.php\",\"Body\":\"MultipartFormData\",\"Arguments\":{\"reqtype\":\"fileupload\"},\"FileFormName\":\"fileToUpload\",\"URL\":\"{response}\"}";
+ let cfg: CustomUploaderConfig = serde_json::from_str(cfg_json).unwrap();
+ let plan = build_request_plan(&cfg, "shot.png", "shot.png");
+ assert_eq!(plan.body, "MultipartFormData");
+ assert_eq!(plan.file_form_name, "fileToUpload");
+ assert_eq!(plan.arguments.get("reqtype").unwrap(), "fileupload");
+ let links = resolve_response(&cfg, "https://files.catbox.moe/abc.png", &BTreeMap::new(), "shot.png", "shot.png");
+ assert_eq!(links.url, "https://files.catbox.moe/abc.png");
+ }
+
+ #[test]
+ fn builtin_0x0_ua_header() {
+ let cfg_json = "{\"Name\":\"0x0.st\",\"RequestMethod\":\"POST\",\"RequestURL\":\"https://0x0.st\",\"Headers\":{\"User-Agent\":\"SloerShot/1.0\"},\"Body\":\"MultipartFormData\",\"FileFormName\":\"file\",\"URL\":\"{response}\"}";
+ let cfg: CustomUploaderConfig = serde_json::from_str(cfg_json).unwrap();
+ let plan = build_request_plan(&cfg, "x", "x.png");
+ assert_eq!(plan.headers.get("User-Agent").unwrap(), "SloerShot/1.0");
+ assert_eq!(plan.file_form_name, "file");
+ }
+
+ #[test]
+ fn builtin_transfersh_filename_in_url() {
+ let cfg_json = "{\"Name\":\"transfer.sh\",\"RequestMethod\":\"PUT\",\"RequestURL\":\"https://transfer.sh/{filename}\",\"Body\":\"Binary\",\"URL\":\"{response}\"}";
+ let cfg: CustomUploaderConfig = serde_json::from_str(cfg_json).unwrap();
+ let plan = build_request_plan(&cfg, "shot.png", "shot.png");
+ assert_eq!(plan.method, "PUT");
+ assert_eq!(plan.url, "https://transfer.sh/shot.png");
+ assert_eq!(plan.body, "Binary");
+ }
+
+ #[test]
+ fn builtin_fileio_json_link() {
+ let cfg_json = "{\"Name\":\"file.io\",\"RequestMethod\":\"POST\",\"RequestURL\":\"https://file.io\",\"Body\":\"MultipartFormData\",\"FileFormName\":\"file\",\"URL\":\"{json:link}\"}";
+ let cfg: CustomUploaderConfig = serde_json::from_str(cfg_json).unwrap();
+ let links = resolve_response(&cfg, "{\"success\":true,\"link\":\"https://file.io/AbC\"}", &BTreeMap::new(), "x", "x");
+ assert_eq!(links.url, "https://file.io/AbC");
+ }
 }

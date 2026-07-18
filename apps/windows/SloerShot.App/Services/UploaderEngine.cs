@@ -29,8 +29,10 @@ public sealed class UploaderEngine
  RequestPlan? plan;
  try { plan = JsonSerializer.Deserialize<RequestPlan>(planJson); } catch { plan = null; }
  if (plan == null || string.IsNullOrWhiteSpace(plan.Url)) return UploadOutcome.Fail("Could not build request");
+ 
 
- using var req = new HttpRequestMessage(new HttpMethod(string.IsNullOrEmpty(plan.Method) ? "POST" : plan.Method), plan.Url);
+ if (plan.Url.StartsWith("ftp://") || plan.Url.StartsWith("ftps://")) return await UploadViaFtpAsync(configJson, plan.Url, fileBytes, fileName);
+using var req = new HttpRequestMessage(new HttpMethod(string.IsNullOrEmpty(plan.Method) ? "POST" : plan.Method), plan.Url);
  string mime = GuessMime(fileName);
  switch (plan.Body)
  {
@@ -94,6 +96,38 @@ public sealed class UploaderEngine
 
  private static string Trunc(string s, int n) => s.Length <= n ? s : s.Substring(0, n) + "...";
 
+  private async Task<UploadOutcome> UploadViaFtpAsync(string configJson, string url, byte[] data, string fileName)
+ {
+ try
+ {
+ var uri = new Uri(url);
+ string user = "anonymous";
+ string pass = "";
+ var ui = uri.UserInfo;
+ int idx = ui.IndexOf(":");
+ if (idx >= 0) { user = Uri.UnescapeDataString(ui.Substring(0, idx)); pass = Uri.UnescapeDataString(ui.Substring(idx + 1)); }
+ else if (ui.Length > 0) { user = Uri.UnescapeDataString(ui); }
+ var clean = uri.GetComponents(UriComponents.Scheme | UriComponents.Host | UriComponents.Port | UriComponents.Path, UriFormat.UriEscaped);
+#pragma warning disable SYSLIB0014
+ var req = (System.Net.FtpWebRequest)System.Net.WebRequest.Create(clean);
+#pragma warning restore SYSLIB0014
+ req.Method = System.Net.WebRequestMethods.Ftp.UploadFile;
+ req.Credentials = new System.Net.NetworkCredential(user, pass);
+ req.UseBinary = true;
+ req.KeepAlive = false;
+ using (var s = await req.GetRequestStreamAsync()) { await s.WriteAsync(data, 0, data.Length); }
+ using (var resp = (System.Net.FtpWebResponse)await req.GetResponseAsync()) { }
+ string link = clean;
+ try
+ {
+ var linksJson = ShotCore.CustomUploaderResolveResponse(configJson, "", "{}", fileName, fileName);
+ if (!string.IsNullOrEmpty(linksJson)) { var lk = JsonSerializer.Deserialize<ResponseLinks>(linksJson); if (lk != null && !string.IsNullOrWhiteSpace(lk.Url) && !lk.Url.StartsWith("ftp")) link = lk.Url; }
+ }
+ catch { }
+ return UploadOutcome.Ok(link, "", "");
+ }
+ catch (Exception ex) { return UploadOutcome.Fail("FTP error: " + ex.Message); }
+ }
  private static string GuessMime(string name)
  {
  string e = Path.GetExtension(name).ToLowerInvariant();
@@ -118,6 +152,7 @@ public sealed class UploaderEngine
  RequestPlan? plan;
  try { plan = JsonSerializer.Deserialize<RequestPlan>(planJson); } catch { plan = null; }
  if (plan == null || string.IsNullOrWhiteSpace(plan.Url)) return UploadOutcome.Fail("Could not build request");
+ 
  using var req = new HttpRequestMessage(new HttpMethod(string.IsNullOrEmpty(plan.Method) ? "GET" : plan.Method), plan.Url);
  switch (plan.Body)
  {

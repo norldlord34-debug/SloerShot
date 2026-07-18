@@ -29,6 +29,16 @@ public bool AfterUploadShowQr { get; set; } = false;
 public bool AfterCaptureUpload { get; set; } = false;
 public string UrlShortener { get; set; } = "none";
 public string CustomShortenerConfig { get; set; } = "";
+private void MergeBuiltInDestinations()
+{
+var seeded = BuiltInDestinations.Seed();
+foreach (var s in seeded)
+{
+var existing = Destinations.Find(d => d.Id == s.Id);
+if (existing == null) Destinations.Add(s);
+else if (existing.BuiltIn) { existing.Name = s.Name; existing.ConfigJson = s.ConfigJson; }
+}
+}
 public string ResolveDestinationConfig(UploadDestination d)
 {
 return ApplyTokens(d?.ConfigJson ?? "");
@@ -95,7 +105,7 @@ if (JpegQuality < 10) JpegQuality = 10;
 if (JpegQuality > 100) JpegQuality = 100;
 if (Format != "jpg") Format = "png";
 if (Destinations == null) Destinations = new List<UploadDestination>();
-if (Destinations.Count == 0) Destinations = BuiltInDestinations.Seed();
+MergeBuiltInDestinations();
 if (string.IsNullOrWhiteSpace(ActiveDestinationId) || Destinations.TrueForAll(d => d.Id != ActiveDestinationId)) ActiveDestinationId = Destinations[0].Id;
 return this;
 }

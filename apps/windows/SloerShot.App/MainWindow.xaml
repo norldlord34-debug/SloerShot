@@ -289,6 +289,8 @@ Title="SloerShot">
 <MenuFlyoutItem Text="Split image..." Click="OnSplitImage" />
 <MenuFlyoutItem Text="Upload text..." Click="OnUploadText" />
 <MenuFlyoutItem Text="Generate QR code..." Click="OnQrTool" />
+<MenuFlyoutSeparator />
+<MenuFlyoutItem Text="Workflows and hotkeys..." Click="OnWorkflows" />
 </MenuFlyout>
 </DropDownButton.Flyout>
 </DropDownButton>

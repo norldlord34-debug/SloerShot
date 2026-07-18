@@ -33,6 +33,7 @@ private readonly AppSettings _settings;
 private readonly UploaderEngine _uploader = new();
 private string _lastUploadDeletionUrl = "";
 private string _lastUploadUrl = "";
+private Workflow? _pendingWorkflow;
 private HotkeyService? _hotkey;
 private DispatcherTimer? _toastTimer;
 private readonly List<PinWindow> _pins = new();
@@ -108,6 +109,7 @@ private void RegisterCaptureHotkey()
 if (_hotkey != null)
 {
 _hotkey.Unregister(1); _hotkey.Unregister(2); _hotkey.Unregister(3); _hotkey.Unregister(4); _hotkey.Unregister(5); _hotkey.Unregister(6);
+for (int wid = 100; wid < 150; wid++) _hotkey.Unregister(wid);
 if (_settings.HotkeyEnabled)
 {
 _hotkey.Register(1, _settings.HotkeyModifiers, _settings.HotkeyVk);
@@ -117,6 +119,7 @@ _hotkey.Register(3, cs, 0x35);
 _hotkey.Register(4, cs, 0x36);
 _hotkey.Register(5, cs, 0x32);
 _hotkey.Register(6, cs, 0x55);
+for (int wi = 0; wi < _settings.Workflows.Count && wi < 50; wi++) { var wf = _settings.Workflows[wi]; if (wf.Enabled && wf.HotkeyVk != 0) _hotkey.Register(100 + wi, wf.HotkeyModifiers, wf.HotkeyVk); }
 }
 }
 UpdateHotkeyHint();
@@ -124,6 +127,7 @@ UpdateHotkeyHint();
 private void OnHotkey(int id)
 {
 var dq = DispatcherQueue;
+if (id >= 100) { int wi = id - 100; if (dq != null) dq.TryEnqueue(() => RunWorkflow(wi)); else RunWorkflow(wi); return; }
 Action act = id switch
 {
 2 => () => DoCapture("area"),
@@ -359,6 +363,7 @@ LoadImage(path);
 StatusText.Text = status + ".";
 if (_settings.AutoCopyToClipboard) _ = CopyImageFileAsync(path);
 if (_settings.AfterCaptureUpload) _ = UploadToActiveAsync();
+if (_pendingWorkflow != null) { var wf = _pendingWorkflow; _pendingWorkflow = null; if (wf.AutoCopy && !_settings.AutoCopyToClipboard) _ = CopyImageFileAsync(path); if (wf.AutoUpload && !_settings.AfterCaptureUpload) _ = UploadToActiveAsync(); }
 ShowCaptureToast(path, w, h);
 }
 private async Task CopyImageFileAsync(string path)
@@ -1073,6 +1078,50 @@ if (r == ContentDialogResult.Primary) { ApplyFx(Cur().BuildOp(s1.Value, s2.Value
 try { File.Delete(previewOut); } catch { }
 }
 catch (Exception ex) { StatusText.Text = "Effects studio error: " + ex.Message; }
+}
+private void RunWorkflow(int index)
+{
+if (index < 0 || index >= _settings.Workflows.Count) return;
+var wf = _settings.Workflows[index];
+if (wf.Mode == "record") { OnToggleRecording(this, new RoutedEventArgs()); return; }
+_pendingWorkflow = wf;
+DoCapture(wf.Mode);
+}
+private async void OnWorkflows(object sender, RoutedEventArgs e)
+{
+var keyNames = new List<string> { "None" };
+var keyVks = new List<uint> { 0 };
+for (uint vk = 0x41; vk <= 0x5A; vk++) { keyNames.Add(((char)vk).ToString()); keyVks.Add(vk); }
+for (uint vk = 0x30; vk <= 0x39; vk++) { keyNames.Add(((char)vk).ToString()); keyVks.Add(vk); }
+for (int fi = 1; fi <= 12; fi++) { keyNames.Add("F" + fi); keyVks.Add((uint)(0x6F + fi)); }
+string ModeFromIndex(int idx) => idx == 1 ? "window" : (idx == 2 ? "full" : (idx == 3 ? "record" : "area"));
+int IndexFromMode(string mm) => mm == "window" ? 1 : (mm == "full" ? 2 : (mm == "record" ? 3 : 0));
+var list = new ListView { SelectionMode = ListViewSelectionMode.Single, MaxHeight = 170, MinWidth = 460 };
+var nameBox = new TextBox { PlaceholderText = "Name", MinWidth = 200 };
+var modeCombo = new ComboBox { MinWidth = 150 };
+modeCombo.Items.Add("Area"); modeCombo.Items.Add("Window"); modeCombo.Items.Add("Fullscreen"); modeCombo.Items.Add("Record"); modeCombo.SelectedIndex = 0;
+var cCtrl = new CheckBox { Content = "Ctrl", IsChecked = true }; var cShift = new CheckBox { Content = "Shift", IsChecked = true }; var cAlt = new CheckBox { Content = "Alt" }; var cWin = new CheckBox { Content = "Win" };
+var keyCombo = new ComboBox { MinWidth = 90 }; foreach (var kn in keyNames) keyCombo.Items.Add(kn); keyCombo.SelectedIndex = 0;
+var tCopy = new CheckBox { Content = "Auto-copy" }; var tUpload = new CheckBox { Content = "Auto-upload" };
+string Hk(Workflow w) { if (w.HotkeyVk == 0) return "(no hotkey)"; var parts = new List<string>(); if ((w.HotkeyModifiers & HotkeyService.ModControl) != 0) parts.Add("Ctrl"); if ((w.HotkeyModifiers & HotkeyService.ModShift) != 0) parts.Add("Shift"); if ((w.HotkeyModifiers & HotkeyService.ModAlt) != 0) parts.Add("Alt"); if ((w.HotkeyModifiers & HotkeyService.ModWin) != 0) parts.Add("Win"); var ki = keyVks.IndexOf(w.HotkeyVk); parts.Add(ki >= 0 ? keyNames[ki] : ("VK" + w.HotkeyVk)); return string.Join("+", parts); }
+void Refresh() { list.Items.Clear(); foreach (var w in _settings.Workflows) list.Items.Add(new ListViewItem { Content = w.Name + " [" + w.Mode + "] " + Hk(w), Tag = w.Id }); }
+void WriteEditor(Workflow w) { nameBox.Text = w.Name; modeCombo.SelectedIndex = IndexFromMode(w.Mode); cCtrl.IsChecked = (w.HotkeyModifiers & HotkeyService.ModControl) != 0; cShift.IsChecked = (w.HotkeyModifiers & HotkeyService.ModShift) != 0; cAlt.IsChecked = (w.HotkeyModifiers & HotkeyService.ModAlt) != 0; cWin.IsChecked = (w.HotkeyModifiers & HotkeyService.ModWin) != 0; var ki = keyVks.IndexOf(w.HotkeyVk); keyCombo.SelectedIndex = ki >= 0 ? ki : 0; tCopy.IsChecked = w.AutoCopy; tUpload.IsChecked = w.AutoUpload; }
+void ReadEditor(Workflow w) { w.Name = string.IsNullOrWhiteSpace(nameBox.Text) ? "Workflow" : nameBox.Text; w.Mode = ModeFromIndex(modeCombo.SelectedIndex); uint mods = 0; if (cCtrl.IsChecked == true) mods |= HotkeyService.ModControl; if (cShift.IsChecked == true) mods |= HotkeyService.ModShift; if (cAlt.IsChecked == true) mods |= HotkeyService.ModAlt; if (cWin.IsChecked == true) mods |= HotkeyService.ModWin; w.HotkeyModifiers = mods; var ki = keyCombo.SelectedIndex; w.HotkeyVk = (ki >= 0 && ki < keyVks.Count) ? keyVks[ki] : 0; w.AutoCopy = tCopy.IsChecked == true; w.AutoUpload = tUpload.IsChecked == true; }
+Workflow? Selected() { var id = (list.SelectedItem as ListViewItem)?.Tag as string; return id == null ? null : _settings.Workflows.Find(w => w.Id == id); }
+list.SelectionChanged += (s, e2) => { var w = Selected(); if (w != null) WriteEditor(w); };
+var addBtn = new Button { Content = "Add new" }; addBtn.Click += (s, e2) => { var w = new Workflow(); ReadEditor(w); _settings.Workflows.Add(w); Refresh(); };
+var updBtn = new Button { Content = "Update" }; updBtn.Click += (s, e2) => { var w = Selected(); if (w != null) { ReadEditor(w); Refresh(); } };
+var remBtn = new Button { Content = "Remove" }; remBtn.Click += (s, e2) => { var w = Selected(); if (w != null) { _settings.Workflows.Remove(w); Refresh(); } };
+Refresh();
+var modRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 }; modRow.Children.Add(cCtrl); modRow.Children.Add(cShift); modRow.Children.Add(cAlt); modRow.Children.Add(cWin); modRow.Children.Add(keyCombo);
+var togRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 }; togRow.Children.Add(tCopy); togRow.Children.Add(tUpload);
+var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 }; btnRow.Children.Add(addBtn); btnRow.Children.Add(updBtn); btnRow.Children.Add(remBtn);
+var panel = new StackPanel { Spacing = 8, MinWidth = 470 };
+panel.Children.Add(new TextBlock { Text = "Workflows run a capture in a mode with a global hotkey and optional auto-copy/upload.", TextWrapping = TextWrapping.Wrap });
+panel.Children.Add(list); panel.Children.Add(nameBox); panel.Children.Add(modeCombo); panel.Children.Add(modRow); panel.Children.Add(togRow); panel.Children.Add(btnRow);
+var dlg = new ContentDialog { Title = "Workflows", Content = new ScrollViewer { Content = panel, MaxHeight = 520 }, PrimaryButtonText = "Done", XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+await dlg.ShowAsync();
+_settings.Fixup(); _settings.Save(); RegisterCaptureHotkey(); StatusText.Text = "Workflows updated.";
 }
 private void OnBgPreset(object sender, RoutedEventArgs e) { var tg = (sender as FrameworkElement)?.Tag as string; if (tg != null) { _bgPreset = tg; _bgType = "gradient"; if (BgTypeCombo != null) BgTypeCombo.SelectedIndex = 0; StatusText.Text = "Gradient: " + tg; } }
 private void OnBgColorSwatch(object sender, RoutedEventArgs e) { var hex = (sender as FrameworkElement)?.Tag as string; if (hex != null && hex.Length >= 6) { try { _bgColor = (Convert.ToByte(hex.Substring(0, 2), 16), Convert.ToByte(hex.Substring(2, 2), 16), Convert.ToByte(hex.Substring(4, 2), 16)); _bgType = "color"; if (BgTypeCombo != null) BgTypeCombo.SelectedIndex = 1; } catch { } } }

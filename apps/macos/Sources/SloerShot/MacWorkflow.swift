@@ -45,7 +45,7 @@ final class WorkflowStore: ObservableObject {
  if w.useCtrl { mods |= UInt32(controlKey) }
  let mode = w.mode
  let up = w.autoUpload
- GlobalHotkeys.shared.register(keyCode: code, modifiers: mods) { [weak model] in Task { @MainActor in model?.runWorkflowMode(mode, autoUpload: up) } }
+ GlobalHotkeys.shared.register(keyCode: code, modifiers: mods) { [weak model] in let m = model; Task { @MainActor in m?.runWorkflowMode(mode, autoUpload: up) } }
  }
  }
 }

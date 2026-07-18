@@ -232,6 +232,8 @@ Title="SloerShot">
 <TextBlock Text="Effects" Foreground="{StaticResource TextBrush}" />
 <DropDownButton.Flyout>
 <MenuFlyout>
+<MenuFlyoutItem Text="Effects studio..." Click="OnEffectsStudio" />
+<MenuFlyoutSeparator />
 <MenuFlyoutItem Text="Grayscale" Tag="grayscale" Click="OnEffectMenu" />
 <MenuFlyoutItem Text="Sepia" Tag="sepia" Click="OnEffectMenu" />
 <MenuFlyoutItem Text="Invert" Tag="invert" Click="OnEffectMenu" />

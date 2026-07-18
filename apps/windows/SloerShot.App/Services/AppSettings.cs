@@ -29,6 +29,7 @@ public bool AfterUploadShowQr { get; set; } = false;
 public bool AfterCaptureUpload { get; set; } = false;
 public string UrlShortener { get; set; } = "none";
 public string CustomShortenerConfig { get; set; } = "";
+public List<EffectPreset> EffectPresets { get; set; } = new();
 private void MergeBuiltInDestinations()
 {
 var seeded = BuiltInDestinations.Seed();
@@ -105,6 +106,7 @@ if (JpegQuality < 10) JpegQuality = 10;
 if (JpegQuality > 100) JpegQuality = 100;
 if (Format != "jpg") Format = "png";
 if (Destinations == null) Destinations = new List<UploadDestination>();
+if (EffectPresets == null) EffectPresets = new List<EffectPreset>();
 MergeBuiltInDestinations();
 if (string.IsNullOrWhiteSpace(ActiveDestinationId) || Destinations.TrueForAll(d => d.Id != ActiveDestinationId)) ActiveDestinationId = Destinations[0].Id;
 return this;

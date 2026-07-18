@@ -1016,6 +1016,64 @@ ApplyFx(op, "Watermark");
 }
 catch (Exception ex) { StatusText.Text = "Watermark error: " + ex.Message; }
 }
+private async void OnEffectsStudio(object sender, RoutedEventArgs e)
+{
+try
+{
+if (_lastCapturePath == null || !File.Exists(_lastCapturePath)) { StatusText.Text = "Capture or open an image first."; return; }
+var previewBase = _lastCapturePath;
+var previewOut = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "fxstudio-out-" + Guid.NewGuid().ToString("N") + ".png");
+var combo = new ComboBox { MinWidth = 220 };
+foreach (var sp in Services.EffectSpec.All) combo.Items.Add(sp.Display);
+combo.SelectedIndex = 0;
+var s1 = new Slider { Width = 240 }; var s2 = new Slider { Width = 240 }; var s3 = new Slider { Width = 240 };
+var l1 = new TextBlock(); var l2 = new TextBlock(); var l3 = new TextBlock();
+var img = new Image { Width = 300, Height = 225, Stretch = Stretch.Uniform };
+Services.EffectSpec Cur() => Services.EffectSpec.All[combo.SelectedIndex < 0 ? 0 : combo.SelectedIndex];
+void Cfg(Slider sl, TextBlock lb, string name, double mn, double mx, double dv)
+{
+if (string.IsNullOrEmpty(name)) { sl.Visibility = Visibility.Collapsed; lb.Visibility = Visibility.Collapsed; }
+else { sl.Visibility = Visibility.Visible; lb.Visibility = Visibility.Visible; lb.Text = name; sl.Minimum = mn; sl.Maximum = mx; sl.StepFrequency = (mx - mn) / 100.0; sl.Value = dv; }
+}
+void ConfigSliders() { var sp = Cur(); Cfg(s1, l1, sp.P1Name, sp.P1Min, sp.P1Max, sp.P1Def); Cfg(s2, l2, sp.P2Name, sp.P2Min, sp.P2Max, sp.P2Def); Cfg(s3, l3, sp.P3Name, sp.P3Min, sp.P3Max, sp.P3Def); }
+bool rendering = false;
+async void Render()
+{
+if (rendering) return;
+rendering = true;
+try
+{
+var op = Cur().BuildOp(s1.Value, s2.Value, s3.Value);
+var rc = await Task.Run(() => ShotCore.FxApply(previewBase, previewOut, op));
+if (rc == 0 && File.Exists(previewOut)) { var bmp = new BitmapImage(); using (var fs = File.OpenRead(previewOut)) { await bmp.SetSourceAsync(fs.AsRandomAccessStream()); } img.Source = bmp; }
+}
+finally { rendering = false; }
+}
+combo.SelectionChanged += (s, e2) => { ConfigSliders(); Render(); };
+s1.ValueChanged += (s, e2) => Render();
+s2.ValueChanged += (s, e2) => Render();
+s3.ValueChanged += (s, e2) => Render();
+var presetCombo = new ComboBox { MinWidth = 180 };
+void RefreshPresets() { presetCombo.Items.Clear(); foreach (var p in _settings.EffectPresets) presetCombo.Items.Add(p.Name); }
+RefreshPresets();
+var nameBox = new TextBox { PlaceholderText = "Preset name", MinWidth = 140 };
+var saveP = new Button { Content = "Save preset" };
+saveP.Click += (s, e2) => { var nm = string.IsNullOrWhiteSpace(nameBox.Text) ? Cur().Display : nameBox.Text; _settings.EffectPresets.RemoveAll(p => p.Name == nm); _settings.EffectPresets.Add(new Services.EffectPreset { Name = nm, Key = Cur().Key, P1 = s1.Value, P2 = s2.Value, P3 = s3.Value }); _settings.Save(); RefreshPresets(); StatusText.Text = "Preset saved."; };
+var loadP = new Button { Content = "Load" };
+loadP.Click += (s, e2) => { if (presetCombo.SelectedIndex < 0 || presetCombo.SelectedIndex >= _settings.EffectPresets.Count) return; var p = _settings.EffectPresets[presetCombo.SelectedIndex]; var idx = Services.EffectSpec.All.FindIndex(x => x.Key == p.Key); if (idx >= 0) { combo.SelectedIndex = idx; ConfigSliders(); s1.Value = p.P1; s2.Value = p.P2; s3.Value = p.P3; Render(); } };
+ConfigSliders(); Render();
+var left = new StackPanel { Spacing = 6, MinWidth = 260 };
+left.Children.Add(combo); left.Children.Add(l1); left.Children.Add(s1); left.Children.Add(l2); left.Children.Add(s2); left.Children.Add(l3); left.Children.Add(s3);
+var presetRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 }; presetRow.Children.Add(presetCombo); presetRow.Children.Add(loadP); left.Children.Add(presetRow);
+var saveRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 }; saveRow.Children.Add(nameBox); saveRow.Children.Add(saveP); left.Children.Add(saveRow);
+var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 }; row.Children.Add(left); row.Children.Add(new Border { Child = img, Width = 300, Height = 225 });
+var dlg = new ContentDialog { Title = "Effects studio", Content = row, PrimaryButtonText = "Apply", CloseButtonText = "Close", DefaultButton = ContentDialogButton.Primary, XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+var r = await dlg.ShowAsync();
+if (r == ContentDialogResult.Primary) { ApplyFx(Cur().BuildOp(s1.Value, s2.Value, s3.Value), Cur().Display); }
+try { File.Delete(previewOut); } catch { }
+}
+catch (Exception ex) { StatusText.Text = "Effects studio error: " + ex.Message; }
+}
 private void OnBgPreset(object sender, RoutedEventArgs e) { var tg = (sender as FrameworkElement)?.Tag as string; if (tg != null) { _bgPreset = tg; _bgType = "gradient"; if (BgTypeCombo != null) BgTypeCombo.SelectedIndex = 0; StatusText.Text = "Gradient: " + tg; } }
 private void OnBgColorSwatch(object sender, RoutedEventArgs e) { var hex = (sender as FrameworkElement)?.Tag as string; if (hex != null && hex.Length >= 6) { try { _bgColor = (Convert.ToByte(hex.Substring(0, 2), 16), Convert.ToByte(hex.Substring(2, 2), 16), Convert.ToByte(hex.Substring(4, 2), 16)); _bgType = "color"; if (BgTypeCombo != null) BgTypeCombo.SelectedIndex = 1; } catch { } } }
 private void OnBgTypeChanged(object sender, SelectionChangedEventArgs e) { if ((sender as ComboBox)?.SelectedItem is ComboBoxItem it && it.Content is string sv) _bgType = sv.ToLowerInvariant(); }

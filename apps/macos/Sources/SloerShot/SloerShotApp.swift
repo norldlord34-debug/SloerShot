@@ -76,7 +76,6 @@ let out = FileManager.default.temporaryDirectory.appendingPathComponent("sloersh
 if ShotCore.qrEncodePng(text: text, scale: 8, quiet: 4, outPath: out.path) == 0 { NSWorkspace.shared.open(out) }
 }
 func openEditor(with image: CGImage) {
-func openEditor(with image: CGImage) {
  editor = EditorModel(background: image, width: UInt32(image.width), height: UInt32(image.height))
 lastImage = image
  }

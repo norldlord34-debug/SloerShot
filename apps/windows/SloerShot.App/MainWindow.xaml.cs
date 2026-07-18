@@ -90,6 +90,7 @@ InitHotkey();
 this.Closed += OnWindowClosed;
 try { this.AppWindow.Closing += OnAppWindowClosing; } catch { }
 SetupTray();
+ApplyTheme();
 HandleCommandLine();
 }
 private void InitHotkey()
@@ -229,7 +230,7 @@ private async void DoScrollingCapture()
 {
 try
 {
-var info = new ContentDialog { Title = "Scrolling capture", Content = "I will take 6 shots over about 8 seconds. Put the target window in front and scroll down steadily after you click Start.", PrimaryButtonText = "Start", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+var info = new ContentDialog { Title = "Scrolling capture", Content = "I will take 6 shots over about 8 seconds. Put the target window in front and scroll down steadily after you click Start.", PrimaryButtonText = "Start", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, XamlRoot = Content.XamlRoot };
 if (await info.ShowAsync() != ContentDialogResult.Primary) { StatusText.Text = "Scrolling capture cancelled."; return; }
 this.AppWindow.Hide();
 await Task.Delay(450);
@@ -648,7 +649,7 @@ try
 {
 if (_lastCapturePath == null) { StatusText.Text = "Capture something first."; return; }
 var box = new TextBox { AcceptsReturn = true, PlaceholderText = "Type annotation text", MinWidth = 320, Height = 90, TextWrapping = TextWrapping.Wrap };
-var dialog = new ContentDialog { Title = "Set annotation text", Content = box, PrimaryButtonText = "Apply", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+var dialog = new ContentDialog { Title = "Set annotation text", Content = box, PrimaryButtonText = "Apply", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, XamlRoot = Content.XamlRoot };
 if (await dialog.ShowAsync() == ContentDialogResult.Primary) { EditorCanvas.SetSelectedText(box.Text ?? ""); StatusText.Text = "Text applied (select a text annotation first)."; }
 }
 catch (Exception ex) { StatusText.Text = "Set text failed: " + ex.Message; }
@@ -771,7 +772,7 @@ panel.Children.Add(tplRow);
 panel.Children.Add(new TextBlock { Text = "Imgur Client ID", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
 panel.Children.Add(imgurBox);
 var scroll = new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 520 };
-var dialog = new ContentDialog { Title = "Upload Destinations", PrimaryButtonText = "Done", Content = scroll, XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+var dialog = new ContentDialog { Title = "Upload Destinations", PrimaryButtonText = "Done", Content = scroll, XamlRoot = Content.XamlRoot };
 await dialog.ShowAsync();
 _settings.ImgurClientId = imgurBox.Text ?? "";
 _settings.Fixup();
@@ -813,7 +814,7 @@ var linkText = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, Ma
 var panel = new StackPanel { Spacing = 10, HorizontalAlignment = HorizontalAlignment.Center };
 panel.Children.Add(img);
 panel.Children.Add(linkText);
-var dlg = new ContentDialog { Title = "QR code", Content = panel, PrimaryButtonText = "Save PNG...", SecondaryButtonText = "Copy link", CloseButtonText = "Close", XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+var dlg = new ContentDialog { Title = "QR code", Content = panel, PrimaryButtonText = "Save PNG...", SecondaryButtonText = "Copy link", CloseButtonText = "Close", XamlRoot = Content.XamlRoot };
 var r = await dlg.ShowAsync();
 if (r == ContentDialogResult.Primary)
 {
@@ -845,7 +846,7 @@ combo.SelectedIndex = 0;
 var panel = new StackPanel { Spacing = 8 };
 panel.Children.Add(new TextBlock { Text = "Folder: " + folder, TextWrapping = TextWrapping.Wrap, MaxWidth = 380 });
 panel.Children.Add(combo);
-var dlg = new ContentDialog { Title = "Folder Indexer", Content = panel, PrimaryButtonText = "Create", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+var dlg = new ContentDialog { Title = "Folder Indexer", Content = panel, PrimaryButtonText = "Create", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, XamlRoot = Content.XamlRoot };
 if (await dlg.ShowAsync() != ContentDialogResult.Primary) return;
 var idx = combo.SelectedIndex;
 var fmt = idx == 1 ? "text" : (idx == 2 ? "json" : "html");
@@ -890,7 +891,7 @@ row.Children.Add(new TextBlock { Text = algo.ToUpperInvariant(), Width = 60, Ver
 row.Children.Add(new TextBox { Text = hv.GetString() ?? "", IsReadOnly = true, MinWidth = 360, FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas") });
 panel.Children.Add(row);
 }
-var dlg = new ContentDialog { Title = "File hashes", Content = new ScrollViewer { Content = panel, MaxHeight = 420 }, CloseButtonText = "Close", XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+var dlg = new ContentDialog { Title = "File hashes", Content = new ScrollViewer { Content = panel, MaxHeight = 420 }, CloseButtonText = "Close", XamlRoot = Content.XamlRoot };
 await dlg.ShowAsync();
 StatusText.Text = "Hashes computed.";
 }
@@ -905,7 +906,7 @@ var rowsBox = new NumberBox { Header = "Rows", Value = 2, Minimum = 1, Maximum =
 var colsBox = new NumberBox { Header = "Columns", Value = 2, Minimum = 1, Maximum = 20, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Inline };
 var panel = new StackPanel { Spacing = 10, MinWidth = 240 };
 panel.Children.Add(rowsBox); panel.Children.Add(colsBox);
-var dlg = new ContentDialog { Title = "Split image", Content = panel, PrimaryButtonText = "Split", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+var dlg = new ContentDialog { Title = "Split image", Content = panel, PrimaryButtonText = "Split", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, XamlRoot = Content.XamlRoot };
 if (await dlg.ShowAsync() != ContentDialogResult.Primary) return;
 uint rows = (uint)Math.Max(1, (int)rowsBox.Value);
 uint cols = (uint)Math.Max(1, (int)colsBox.Value);
@@ -924,7 +925,7 @@ private async void OnUploadText(object sender, RoutedEventArgs e)
 try
 {
 var box = new TextBox { AcceptsReturn = true, Height = 180, MinWidth = 420, TextWrapping = TextWrapping.Wrap, PlaceholderText = "Type or paste text to upload to the active destination" };
-var dlg = new ContentDialog { Title = "Upload text", Content = box, PrimaryButtonText = "Upload", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+var dlg = new ContentDialog { Title = "Upload text", Content = box, PrimaryButtonText = "Upload", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, XamlRoot = Content.XamlRoot };
 if (await dlg.ShowAsync() != ContentDialogResult.Primary) return;
 var text = box.Text ?? "";
 if (string.IsNullOrWhiteSpace(text)) return;
@@ -947,7 +948,7 @@ catch (Exception ex) { StatusText.Text = "Text upload error: " + ex.Message; }
 private async void OnQrTool(object sender, RoutedEventArgs e)
 {
 var box = new TextBox { AcceptsReturn = true, Height = 90, MinWidth = 360, TextWrapping = TextWrapping.Wrap, PlaceholderText = "Text or URL to encode", Text = _lastUploadUrl ?? "" };
-var dlg = new ContentDialog { Title = "Generate QR", Content = box, PrimaryButtonText = "Generate", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+var dlg = new ContentDialog { Title = "Generate QR", Content = box, PrimaryButtonText = "Generate", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, XamlRoot = Content.XamlRoot };
 if (await dlg.ShowAsync() != ContentDialogResult.Primary) return;
 var text = box.Text ?? "";
 if (!string.IsNullOrWhiteSpace(text)) await ShowQrDialogAsync(text);
@@ -1108,7 +1109,7 @@ left.Children.Add(combo); left.Children.Add(l1); left.Children.Add(s1); left.Chi
 var presetRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 }; presetRow.Children.Add(presetCombo); presetRow.Children.Add(loadP); left.Children.Add(presetRow);
 var saveRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 }; saveRow.Children.Add(nameBox); saveRow.Children.Add(saveP); left.Children.Add(saveRow);
 var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 }; row.Children.Add(left); row.Children.Add(new Border { Child = img, Width = 300, Height = 225 });
-var dlg = new ContentDialog { Title = "Effects studio", Content = row, PrimaryButtonText = "Apply", CloseButtonText = "Close", DefaultButton = ContentDialogButton.Primary, XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+var dlg = new ContentDialog { Title = "Effects studio", Content = row, PrimaryButtonText = "Apply", CloseButtonText = "Close", DefaultButton = ContentDialogButton.Primary, XamlRoot = Content.XamlRoot };
 var r = await dlg.ShowAsync();
 if (r == ContentDialogResult.Primary) { ApplyFx(Cur().BuildOp(s1.Value, s2.Value, s3.Value), Cur().Display); }
 try { File.Delete(previewOut); } catch { }
@@ -1155,7 +1156,7 @@ var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 
 var panel = new StackPanel { Spacing = 8, MinWidth = 470 };
 panel.Children.Add(new TextBlock { Text = "Workflows run a capture in a mode with a global hotkey and optional auto-copy/upload.", TextWrapping = TextWrapping.Wrap });
 panel.Children.Add(list); panel.Children.Add(nameBox); panel.Children.Add(modeCombo); panel.Children.Add(modRow); panel.Children.Add(togRow); panel.Children.Add(btnRow);
-var dlg = new ContentDialog { Title = "Workflows", Content = new ScrollViewer { Content = panel, MaxHeight = 520 }, PrimaryButtonText = "Done", XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+var dlg = new ContentDialog { Title = "Workflows", Content = new ScrollViewer { Content = panel, MaxHeight = 520 }, PrimaryButtonText = "Done", XamlRoot = Content.XamlRoot };
 await dlg.ShowAsync();
 _settings.Fixup(); _settings.Save(); RegisterCaptureHotkey(); StatusText.Text = "Workflows updated.";
 }
@@ -1186,7 +1187,7 @@ var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
 row.Children.Add(swatch);
 var col2 = new StackPanel { Spacing = 6 }; col2.Children.Add(hexText); col2.Children.Add(rgbText); row.Children.Add(col2);
 panel.Children.Add(row);
-var dlg = new ContentDialog { Title = "Screen color picker", Content = panel, PrimaryButtonText = "Copy hex", CloseButtonText = "Close", XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+var dlg = new ContentDialog { Title = "Screen color picker", Content = panel, PrimaryButtonText = "Copy hex", CloseButtonText = "Close", XamlRoot = Content.XamlRoot };
 var res = await dlg.ShowAsync();
 timer.Stop();
 if (res == ContentDialogResult.Primary) { var dp = new DataPackage(); dp.SetText(currentHex); Clipboard.SetContent(dp); StatusText.Text = "Color copied: " + currentHex; }
@@ -1209,7 +1210,7 @@ anchorBtn.Click += (s, e2) => { var p = ScreenColor.Cursor(); ax = p.X; ay = p.Y
 var panel = new StackPanel { Spacing = 10, MinWidth = 340 };
 panel.Children.Add(new TextBlock { Text = "Live cursor position. Set an anchor, then move to measure distance.", TextWrapping = TextWrapping.Wrap });
 panel.Children.Add(posText); panel.Children.Add(deltaText); panel.Children.Add(anchorBtn);
-var dlg = new ContentDialog { Title = "Screen ruler", Content = panel, CloseButtonText = "Close", XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+var dlg = new ContentDialog { Title = "Screen ruler", Content = panel, CloseButtonText = "Close", XamlRoot = Content.XamlRoot };
 await dlg.ShowAsync();
 timer.Stop();
 }
@@ -1217,7 +1218,7 @@ private async void OnThumbnail(object sender, RoutedEventArgs e)
 {
 if (_lastCapturePath == null || !File.Exists(_lastCapturePath)) { StatusText.Text = "Capture or open an image first."; return; }
 var box = new NumberBox { Header = "Max dimension (px)", Value = 320, Minimum = 16, Maximum = 4096, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Inline };
-var dlg = new ContentDialog { Title = "Create thumbnail", Content = box, PrimaryButtonText = "Create", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+var dlg = new ContentDialog { Title = "Create thumbnail", Content = box, PrimaryButtonText = "Create", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, XamlRoot = Content.XamlRoot };
 if (await dlg.ShowAsync() != ContentDialogResult.Primary) return;
 int maxDim = Math.Max(16, (int)box.Value);
 int w = _imgW; int h = _imgH;
@@ -1260,7 +1261,7 @@ var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 
 var panel = new StackPanel { Spacing = 8, MinWidth = 470 };
 panel.Children.Add(new TextBlock { Text = "External programs run on the current capture. Use {input} for the file path.", TextWrapping = TextWrapping.Wrap });
 panel.Children.Add(list); panel.Children.Add(nameBox); panel.Children.Add(progRow); panel.Children.Add(argsBox); panel.Children.Add(btnRow);
-var dlg = new ContentDialog { Title = "External actions", Content = new ScrollViewer { Content = panel, MaxHeight = 520 }, PrimaryButtonText = "Done", XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+var dlg = new ContentDialog { Title = "External actions", Content = new ScrollViewer { Content = panel, MaxHeight = 520 }, PrimaryButtonText = "Done", XamlRoot = Content.XamlRoot };
 await dlg.ShowAsync();
 _settings.Save(); StatusText.Text = "Actions updated.";
 }
@@ -1610,6 +1611,16 @@ else if (key == VirtualKey.X) tool = ToolRedact;
 if (tool != null && _lastCapturePath != null) { tool.IsChecked = true; SyncToggles(tool); ActivateTool(tool.Tag as string ?? "0"); args.Handled = true; }
 }
 }
+private void ApplyTheme()
+{
+try
+{
+var mode = _settings.ThemeMode ?? "dark";
+var theme = mode == "light" ? ElementTheme.Light : (mode == "system" ? ElementTheme.Default : ElementTheme.Dark);
+if (Root != null) Root.RequestedTheme = theme;
+}
+catch { }
+}
 private async void OnOpenSettings(object sender, RoutedEventArgs e)
 {
 var panel = new StackPanel { Spacing = 4, MinWidth = 460 };
@@ -1628,6 +1639,10 @@ var fmtCombo = new ComboBox { MinWidth = 140 };
 fmtCombo.Items.Add("PNG"); fmtCombo.Items.Add("JPG");
 fmtCombo.SelectedIndex = _settings.Format == "jpg" ? 1 : 0;
 panel.Children.Add(new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "Save format", HeaderIcon = new FontIcon { Glyph = "\uEB9F" }, Content = fmtCombo });
+var themeCombo = new ComboBox { MinWidth = 140 };
+themeCombo.Items.Add("Dark"); themeCombo.Items.Add("Light"); themeCombo.Items.Add("System");
+themeCombo.SelectedIndex = _settings.ThemeMode == "light" ? 1 : (_settings.ThemeMode == "system" ? 2 : 0);
+panel.Children.Add(new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "Theme", HeaderIcon = new FontIcon { Glyph = "\uE771" }, Content = themeCombo });
 var hideToggle = new ToggleSwitch { IsOn = _settings.HideWindowDuringCapture };
 panel.Children.Add(new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "Hide window during capture", Description = "Avoid capturing SloerShot itself", HeaderIcon = new FontIcon { Glyph = "\uE7B3" }, Content = hideToggle });
 var copyToggle = new ToggleSwitch { IsOn = _settings.AutoCopyToClipboard };
@@ -1655,13 +1670,14 @@ shortenCombo.Items.Add("None"); shortenCombo.Items.Add("is.gd"); shortenCombo.It
 shortenCombo.SelectedIndex = _settings.UrlShortener == "isgd" ? 1 : (_settings.UrlShortener == "tinyurl" ? 2 : 0);
 panel.Children.Add(new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "URL shortener", Description = "Shorten the link after upload", HeaderIcon = new FontIcon { Glyph = "\uE71B" }, Content = shortenCombo });
 var scroll = new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 520 };
-var dialog = new ContentDialog { Title = "Settings", PrimaryButtonText = "Save", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, Content = scroll, XamlRoot = Content.XamlRoot, RequestedTheme = ElementTheme.Dark };
+var dialog = new ContentDialog { Title = "Settings", PrimaryButtonText = "Save", CloseButtonText = "Cancel", DefaultButton = ContentDialogButton.Primary, Content = scroll, XamlRoot = Content.XamlRoot };
 var res = await dialog.ShowAsync();
 if (res == ContentDialogResult.Primary)
 {
 _settings.SaveFolder = string.IsNullOrWhiteSpace(chosenFolder) ? _settings.SaveFolder : chosenFolder;
 _settings.CaptureDelaySeconds = delayCombo.SelectedIndex == 2 ? 5 : (delayCombo.SelectedIndex == 1 ? 3 : 0);
 _settings.Format = fmtCombo.SelectedIndex == 1 ? "jpg" : "png";
+_settings.ThemeMode = themeCombo.SelectedIndex == 1 ? "light" : (themeCombo.SelectedIndex == 2 ? "system" : "dark");
 _settings.HideWindowDuringCapture = hideToggle.IsOn;
 _settings.AutoCopyToClipboard = copyToggle.IsOn;
 _settings.OpenFolderAfterSave = openToggle.IsOn;
@@ -1675,6 +1691,7 @@ _settings.UrlShortener = shortenCombo.SelectedIndex == 1 ? "isgd" : (shortenComb
 _settings.Fixup();
 _settings.Save();
 RegisterCaptureHotkey();
+ApplyTheme();
 StatusText.Text = "Settings saved.";
 }
 }

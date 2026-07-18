@@ -18,6 +18,7 @@ public uint HotkeyVk { get; set; } = 0x41;
 public bool HotkeyEnabled { get; set; } = true;
 public string DefaultMode { get; set; } = "area";
 public bool DarkTheme { get; set; } = true;
+public string ThemeMode { get; set; } = "dark";
 public uint AccentArgb { get; set; } = 0xFF3D7EFF;
 public string ServerUrl { get; set; } = "";
 public List<UploadDestination> Destinations { get; set; } = new();

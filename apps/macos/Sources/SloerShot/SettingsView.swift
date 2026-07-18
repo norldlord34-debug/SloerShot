@@ -76,6 +76,7 @@ recordingTab.tabItem { Label("Recording", systemImage: "video") }
 screenshotsTab.tabItem { Label("Screenshots", systemImage: "camera") }
 annotateTab.tabItem { Label("Annotate", systemImage: "pencil.tip") }
 cloudTab.tabItem { Label("Cloud", systemImage: "cloud") }
+DestinationsView().tabItem { Label("Uploads", systemImage: "square.and.arrow.up") }
 advancedTab.tabItem { Label("Advanced", systemImage: "wrench.and.screwdriver") }
 }
 .frame(width: 600, height: 520)

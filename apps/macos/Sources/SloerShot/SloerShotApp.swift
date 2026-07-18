@@ -44,7 +44,21 @@ let frozen = try await Capture.captureFullscreen()
  }
  }
 
- func openEditor(with image: CGImage) {
+ func uploadLast() {
+guard let img = lastImage else { lastError = "Nothing to upload"; return }
+guard let dest = DestinationStore.shared.active else { Toast.show("No upload destination"); return }
+guard let fileURL = UploaderEngine.writeTempPNG(img) else { Toast.show("Encode failed"); return }
+let cfg = DestinationStore.shared.resolveConfig(dest)
+Toast.show("Uploading to " + dest.name + "...")
+Task {
+let outcome = await UploaderEngine.upload(configJson: cfg, fileURL: fileURL)
+if outcome.success {
+NSPasteboard.general.clearContents(); NSPasteboard.general.setString(outcome.url, forType: .string)
+Toast.show("Uploaded - link copied: " + outcome.url)
+} else { Toast.show("Upload failed: " + outcome.error) }
+}
+}
+func openEditor(with image: CGImage) {
  editor = EditorModel(background: image, width: UInt32(image.width), height: UInt32(image.height))
 lastImage = image
  }
@@ -126,6 +140,7 @@ Button("Quick OCR (copy text)") { Task { await model.quickOCR() } }.keyboardShor
 Button("Capture Text to Window") { Task { await model.ocrToPanel() } }.keyboardShortcut("o", modifiers: [.command, .shift])
 Button("Pick Color (hex)") { model.pickColor() }.keyboardShortcut("c", modifiers: [.command, .shift])
 Button("Pin Last Capture") { model.pinLast() }.keyboardShortcut("p", modifiers: [.command, .shift])
+Button("Upload Last Capture") { model.uploadLast() }.keyboardShortcut("u", modifiers: [.command, .shift])
 Button("File Hashes...") { MacTools.showHashes() }
 Button("QR from Clipboard...") { MacTools.qrFromClipboard() }
 Button("Index Folder...") { MacTools.indexFolder() }

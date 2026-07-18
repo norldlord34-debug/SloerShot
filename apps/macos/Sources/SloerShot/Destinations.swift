@@ -70,3 +70,8 @@ final class DestinationStore: ObservableObject {
  func remove(_ dest: UploadDestination) { guard !dest.builtIn else { return }; destinations.removeAll { $0.id == dest.id }; if activeId == dest.id { activeId = destinations.first?.id ?? "" }; save() }
  func setActive(_ id: String) { activeId = id; save() }
 }
+
+enum BuiltInShorteners {
+ static let isgd = "{\"RequestMethod\":\"GET\",\"RequestURL\":\"https://is.gd/create.php\",\"Parameters\":{\"format\":\"simple\",\"url\":\"{input}\"}}"
+ static let tinyurl = "{\"RequestMethod\":\"GET\",\"RequestURL\":\"https://tinyurl.com/api-create.php\",\"Parameters\":{\"url\":\"{input}\"}}"
+}

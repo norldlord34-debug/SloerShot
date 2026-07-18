@@ -52,12 +52,30 @@ let cfg = DestinationStore.shared.resolveConfig(dest)
 Toast.show("Uploading to " + dest.name + "...")
 Task {
 let outcome = await UploaderEngine.upload(configJson: cfg, fileURL: fileURL)
-if outcome.success {
-NSPasteboard.general.clearContents(); NSPasteboard.general.setString(outcome.url, forType: .string)
-Toast.show("Uploaded - link copied: " + outcome.url)
-} else { Toast.show("Upload failed: " + outcome.error) }
+guard outcome.success else { Toast.show("Upload failed: " + outcome.error); return }
+await self.afterUpload(url: outcome.url)
 }
 }
+func afterUpload(url initial: String) async {
+let d = UserDefaults.standard
+var link = initial
+let shortener = d.string(forKey: "ss.urlShortener") ?? "none"
+var scfg: String? = nil
+if shortener == "isgd" { scfg = BuiltInShorteners.isgd } else if shortener == "tinyurl" { scfg = BuiltInShorteners.tinyurl }
+if let s = scfg {
+Toast.show("Shortening...")
+if let short = await UploaderEngine.shorten(configJson: s, longURL: initial) { link = short }
+}
+if d.bool(forKey: "ss.afterUploadCopy") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(link, forType: .string) }
+Toast.show("Uploaded - " + link)
+if d.bool(forKey: "ss.afterUploadOpen"), let u = URL(string: link) { NSWorkspace.shared.open(u) }
+if d.bool(forKey: "ss.afterUploadQr") { showQR(for: link) }
+}
+func showQR(for text: String) {
+let out = FileManager.default.temporaryDirectory.appendingPathComponent("sloershot-qr-" + UUID().uuidString + ".png")
+if ShotCore.qrEncodePng(text: text, scale: 8, quiet: 4, outPath: out.path) == 0 { NSWorkspace.shared.open(out) }
+}
+func openEditor(with image: CGImage) {
 func openEditor(with image: CGImage) {
  editor = EditorModel(background: image, width: UInt32(image.width), height: UInt32(image.height))
 lastImage = image
@@ -87,7 +105,12 @@ struct SloerShotApp: App {
  "ss.recCameraSize": 0.18,
  "ss.qaoAutoClose": false,
  "ss.qaoInterval": 30,
- "ss.exportLocation": "Desktop"
+ "ss.exportLocation": "Desktop",
+"ss.afterUploadCopy": true,
+"ss.afterUploadOpen": false,
+"ss.afterUploadQr": false,
+"ss.urlShortener": "none",
+"ss.afterCaptureUpload": false
  ])
  }
 

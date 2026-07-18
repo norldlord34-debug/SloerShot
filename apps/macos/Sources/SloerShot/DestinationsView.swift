@@ -4,6 +4,11 @@ import AppKit
 struct DestinationsView: View {
  @ObservedObject private var store = DestinationStore.shared
  @AppStorage("ss.imgurClientId") private var imgurClientId = ""
+ @AppStorage("ss.afterUploadCopy") private var afterUploadCopy = true
+ @AppStorage("ss.afterUploadOpen") private var afterUploadOpen = false
+ @AppStorage("ss.afterUploadQr") private var afterUploadQr = false
+ @AppStorage("ss.urlShortener") private var urlShortener = "none"
+ @AppStorage("ss.afterCaptureUpload") private var afterCaptureUpload = false
  @State private var pasteJson = ""
  var body: some View {
  Form {
@@ -31,6 +36,13 @@ struct DestinationsView: View {
  Button("Bearer") { pasteJson = BuiltInDestinations.bearerTemplate }
  }
  }
+ Section("After upload") {
+ Toggle("Copy URL to clipboard", isOn: $afterUploadCopy)
+ Toggle("Open URL in browser", isOn: $afterUploadOpen)
+ Toggle("Show QR of URL", isOn: $afterUploadQr)
+ Picker("Shorten URL", selection: $urlShortener) { Text("None").tag("none"); Text("is.gd").tag("isgd"); Text("TinyURL").tag("tinyurl") }
+ }
+ Section("After capture") { Toggle("Auto-upload new captures", isOn: $afterCaptureUpload) }
  Section("Imgur") { TextField("Imgur Client ID", text: $imgurClientId) }
  Text("Use %SERVER% for your backend URL (set it in the Cloud tab).").font(.caption).foregroundStyle(.secondary)
  }

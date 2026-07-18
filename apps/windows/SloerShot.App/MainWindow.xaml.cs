@@ -1162,57 +1162,38 @@ _settings.Fixup(); _settings.Save(); RegisterCaptureHotkey(); StatusText.Text = 
 }
 private async void OnColorPicker(object sender, RoutedEventArgs e)
 {
-var swatch = new Border { Width = 80, Height = 80, CornerRadius = new CornerRadius(8), BorderThickness = new Thickness(1), BorderBrush = new SolidColorBrush(Microsoft.UI.Colors.Gray) };
-var hexText = new TextBox { IsReadOnly = true, MinWidth = 160, FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Consolas") };
-var rgbText = new TextBlock();
-string currentHex = "#000000";
-var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(60) };
-timer.Tick += (s, e2) =>
-{
 try
 {
-var p = ScreenColor.Cursor();
-var (r, g, b) = ScreenColor.PixelAt(p.X, p.Y);
-swatch.Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, r, g, b));
-currentHex = "#" + r.ToString("X2") + g.ToString("X2") + b.ToString("X2");
-hexText.Text = currentHex;
-rgbText.Text = "RGB " + r + ", " + g + ", " + b + " at " + p.X + ", " + p.Y;
+this.AppWindow.Hide();
+await Task.Delay(200);
+var frozenPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "sloershot-pick-" + DateTime.UtcNow.Ticks + ".png");
+var result = FrozenScreenCapture.CaptureVirtualScreen(frozenPath);
+var vr = FrozenScreenCapture.VirtualScreenRect();
+var overlay = new ColorPickerOverlay();
+var hex = await overlay.PickAsync(frozenPath, vr.X, vr.Y, vr.W, vr.H, result.Width, result.Height);
+try { this.AppWindow.Show(); this.Activate(); } catch { }
+try { File.Delete(frozenPath); } catch { }
+if (hex != null) { var dp = new DataPackage(); dp.SetText(hex); Clipboard.SetContent(dp); StatusText.Text = "Color copied: " + hex; }
+else { StatusText.Text = "Color picker cancelled."; }
 }
-catch { }
-};
-timer.Start();
-var panel = new StackPanel { Spacing = 10 };
-panel.Children.Add(new TextBlock { Text = "Move the mouse over any pixel on screen; the color updates live.", TextWrapping = TextWrapping.Wrap, MaxWidth = 320 });
-var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
-row.Children.Add(swatch);
-var col2 = new StackPanel { Spacing = 6 }; col2.Children.Add(hexText); col2.Children.Add(rgbText); row.Children.Add(col2);
-panel.Children.Add(row);
-var dlg = new ContentDialog { Title = "Screen color picker", Content = panel, PrimaryButtonText = "Copy hex", CloseButtonText = "Close", XamlRoot = Content.XamlRoot };
-var res = await dlg.ShowAsync();
-timer.Stop();
-if (res == ContentDialogResult.Primary) { var dp = new DataPackage(); dp.SetText(currentHex); Clipboard.SetContent(dp); StatusText.Text = "Color copied: " + currentHex; }
+catch (Exception ex) { try { this.AppWindow.Show(); } catch { } StatusText.Text = "Color picker failed: " + ex.Message; }
 }
 private async void OnScreenRuler(object sender, RoutedEventArgs e)
 {
-var posText = new TextBlock();
-var deltaText = new TextBlock();
-int ax = 0; int ay = 0; bool hasAnchor = false;
-var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(60) };
-timer.Tick += (s, e2) =>
+try
 {
-var p = ScreenColor.Cursor();
-posText.Text = "Cursor: " + p.X + ", " + p.Y;
-if (hasAnchor) { int dx = p.X - ax; int dy = p.Y - ay; double dist = Math.Sqrt(dx * (double)dx + dy * (double)dy); double ang = Math.Atan2(dy, dx) * 180.0 / Math.PI; deltaText.Text = "dx=" + dx + " dy=" + dy + " dist=" + dist.ToString("0.0") + " angle=" + ang.ToString("0.0"); }
-};
-timer.Start();
-var anchorBtn = new Button { Content = "Set anchor at cursor" };
-anchorBtn.Click += (s, e2) => { var p = ScreenColor.Cursor(); ax = p.X; ay = p.Y; hasAnchor = true; };
-var panel = new StackPanel { Spacing = 10, MinWidth = 340 };
-panel.Children.Add(new TextBlock { Text = "Live cursor position. Set an anchor, then move to measure distance.", TextWrapping = TextWrapping.Wrap });
-panel.Children.Add(posText); panel.Children.Add(deltaText); panel.Children.Add(anchorBtn);
-var dlg = new ContentDialog { Title = "Screen ruler", Content = panel, CloseButtonText = "Close", XamlRoot = Content.XamlRoot };
-await dlg.ShowAsync();
-timer.Stop();
+this.AppWindow.Hide();
+await Task.Delay(200);
+var frozenPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "sloershot-ruler-" + DateTime.UtcNow.Ticks + ".png");
+var result = FrozenScreenCapture.CaptureVirtualScreen(frozenPath);
+var vr = FrozenScreenCapture.VirtualScreenRect();
+var overlay = new RulerOverlay();
+await overlay.RunAsync(frozenPath, vr.X, vr.Y, vr.W, vr.H, result.Width, result.Height);
+try { this.AppWindow.Show(); this.Activate(); } catch { }
+try { File.Delete(frozenPath); } catch { }
+StatusText.Text = "Ruler closed.";
+}
+catch (Exception ex) { try { this.AppWindow.Show(); } catch { } StatusText.Text = "Ruler failed: " + ex.Message; }
 }
 private async void OnThumbnail(object sender, RoutedEventArgs e)
 {

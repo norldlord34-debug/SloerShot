@@ -284,18 +284,24 @@ Title="SloerShot">
 <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE90F;" FontSize="13" VerticalAlignment="Center" /><TextBlock Text="Tools" Foreground="{StaticResource TextBrush}" VerticalAlignment="Center" /></StackPanel>
 <DropDownButton.Flyout>
 <MenuFlyout>
-<MenuFlyoutItem Text="Index folder..." Click="OnIndexFolder" />
-<MenuFlyoutItem Text="Hash checker..." Click="OnHashCheck" />
-<MenuFlyoutItem Text="Split image..." Click="OnSplitImage" />
+<MenuFlyoutSubItem Text="Sharing"><MenuFlyoutSubItem.Icon><FontIcon Glyph="&#xE72D;" /></MenuFlyoutSubItem.Icon>
 <MenuFlyoutItem Text="Upload text..." Click="OnUploadText" />
 <MenuFlyoutItem Text="Generate QR code..." Click="OnQrTool" />
-<MenuFlyoutSeparator />
-<MenuFlyoutItem Text="Workflows and hotkeys..." Click="OnWorkflows" />
-<MenuFlyoutSeparator />
+</MenuFlyoutSubItem>
+<MenuFlyoutSubItem Text="Image"><MenuFlyoutSubItem.Icon><FontIcon Glyph="&#xEB9F;" /></MenuFlyoutSubItem.Icon>
+<MenuFlyoutItem Text="Split image..." Click="OnSplitImage" />
+<MenuFlyoutItem Text="Create thumbnail..." Click="OnThumbnail" />
+<MenuFlyoutItem Text="Hash checker..." Click="OnHashCheck" />
+<MenuFlyoutItem Text="Index folder..." Click="OnIndexFolder" />
+</MenuFlyoutSubItem>
+<MenuFlyoutSubItem Text="Screen"><MenuFlyoutSubItem.Icon><FontIcon Glyph="&#xE7B3;" /></MenuFlyoutSubItem.Icon>
 <MenuFlyoutItem Text="Screen color picker..." Click="OnColorPicker" />
 <MenuFlyoutItem Text="Screen ruler..." Click="OnScreenRuler" />
+</MenuFlyoutSubItem>
+<MenuFlyoutSubItem Text="Automation"><MenuFlyoutSubItem.Icon><FontIcon Glyph="&#xE90F;" /></MenuFlyoutSubItem.Icon>
+<MenuFlyoutItem Text="Workflows and hotkeys..." Click="OnWorkflows" />
 <MenuFlyoutItem Text="External actions..." Click="OnActions" />
-<MenuFlyoutItem Text="Create thumbnail..." Click="OnThumbnail" />
+</MenuFlyoutSubItem>
 </MenuFlyout>
 </DropDownButton.Flyout>
 </DropDownButton>

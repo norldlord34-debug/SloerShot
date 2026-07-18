@@ -1618,6 +1618,7 @@ var folderCard = new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "Sa
 var browse = new Button { Content = "Browse" };
 browse.Click += async (s, e2) => { var f = await PickFolderAsync(); if (f != null) { chosenFolder = f; folderCard.Description = f; } };
 folderCard.Content = browse;
+panel.Children.Add(new TextBlock { Text = "Capture and save", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Margin = new Thickness(2, 2, 0, 2) });
 panel.Children.Add(folderCard);
 var delayCombo = new ComboBox { MinWidth = 140 };
 delayCombo.Items.Add("None"); delayCombo.Items.Add("3 seconds"); delayCombo.Items.Add("5 seconds");
@@ -1636,6 +1637,7 @@ panel.Children.Add(new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "
 var hkToggle = new ToggleSwitch { IsOn = _settings.HotkeyEnabled };
 panel.Children.Add(new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "Global capture hotkey", Description = DescribeHotkey(), HeaderIcon = new FontIcon { Glyph = "\uE765" }, Content = hkToggle });
 var serverBox = new TextBox { Text = _settings.ServerUrl, PlaceholderText = "https://your-server", MinWidth = 240 };
+panel.Children.Add(new TextBlock { Text = "Sharing and uploads", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Margin = new Thickness(2, 12, 0, 2) });
 panel.Children.Add(new CommunityToolkit.WinUI.Controls.SettingsCard { Header = "Share server URL", Description = "Backend base URL for cloud share links", HeaderIcon = new FontIcon { Glyph = "\uE753" }, Content = serverBox });
 var destBtn = new Button { Content = "Manage..." };
 destBtn.Click += async (s, e2) => { await OnManageDestinationsAsync(); };

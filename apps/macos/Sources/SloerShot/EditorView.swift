@@ -158,6 +158,14 @@ guard let img = loadCGImage(tout) else { return false }
 replaceImage(img)
 return true
 }
+func renderFx(_ opJson: String) -> CGImage? {
+guard let bg = background else { return nil }
+let dir = FileManager.default.temporaryDirectory
+let tin = dir.appendingPathComponent("ss-fxp-in.png")
+let tout = dir.appendingPathComponent("ss-fxp-out.png")
+guard writePNG(bg, to: tin), ShotCore.fxApply(inPath: tin.path, outPath: tout.path, opJson: opJson) == 0 else { return nil }
+return loadCGImage(tout)
+}
 func beautify(from src: CGImage, json: String) -> Bool {
 let dir = FileManager.default.temporaryDirectory
 let tin = dir.appendingPathComponent("ss-bg-in.png")
@@ -245,6 +253,29 @@ case "border": return "{\"op\":\"border\",\"thickness\":16,\"color\":{\"r\":255,
 case "rotateLeft": return "{\"op\":\"rotate\",\"deg\":270}"
 case "rotate180": return "{\"op\":\"rotate\",\"deg\":180}"
 case "flipV": return "{\"op\":\"flip\",\"axis\":\"v\"}"
+case "pixelate": return "{\"op\":\"pixelate\",\"block\":12}"
+case "emboss": return "{\"op\":\"emboss\"}"
+case "edge": return "{\"op\":\"edge\"}"
+case "posterize": return "{\"op\":\"posterize\",\"levels\":4}"
+case "bw": return "{\"op\":\"black_white\",\"threshold\":128}"
+case "solarize": return "{\"op\":\"solarize\",\"threshold\":128}"
+case "colorize": return "{\"op\":\"colorize\",\"color\":{\"r\":220,\"g\":40,\"b\":40}}"
+case "gamma_up": return "{\"op\":\"gamma\",\"gamma\":1.5}"
+case "gamma_down": return "{\"op\":\"gamma\",\"gamma\":0.7}"
+case "hue": return "{\"op\":\"hue\",\"degrees\":90}"
+case "saturate": return "{\"op\":\"saturation\",\"factor\":1.6}"
+case "desaturate": return "{\"op\":\"saturation\",\"factor\":0.4}"
+case "sharpen": return "{\"op\":\"sharpen\",\"amount\":1.2}"
+case "rgb_split": return "{\"op\":\"rgb_split\",\"offset\":3}"
+case "glow": return "{\"op\":\"glow\",\"sigma\":6,\"intensity\":0.6}"
+case "outline": return "{\"op\":\"outline\",\"thickness\":2,\"color\":{\"r\":255,\"g\":80,\"b\":0}}"
+case "shadow": return "{\"op\":\"shadow\",\"dx\":10,\"dy\":10,\"sigma\":8,\"color\":{\"r\":0,\"g\":0,\"b\":0}}"
+case "reflection": return "{\"op\":\"reflection\",\"frac\":0.4,\"opacity\":0.5}"
+case "polaroid": return "{\"op\":\"polaroid\",\"border\":16,\"bottom\":56}"
+case "slice": return "{\"op\":\"slice\",\"slices\":8,\"max_shift\":12}"
+case "torn_edge": return "{\"op\":\"torn_edge\",\"depth\":12}"
+case "wave_edge": return "{\"op\":\"wave_edge\",\"amp\":10,\"period\":20}"
+case "replace_white": return "{\"op\":\"replace_color\",\"from\":{\"r\":255,\"g\":255,\"b\":255},\"to\":{\"r\":0,\"g\":0,\"b\":0},\"tol\":40}"
 default: return nil
 }
 }
@@ -266,6 +297,7 @@ struct EditorView: View {
  @StateObject var model: EditorModel
  @State private var status = ""
  @State private var showStyle = false
+ @State private var showStudio = false
 
  var body: some View {
 HStack(spacing: 0) {
@@ -345,6 +377,32 @@ Button("Sharpen") { model.applyPathOp("sharpen") }
 Button("White Balance") { model.applyPathOp("whitebalance") }
 Button("Auto Color") { model.applyPathOp("autocolor") }
 Button("Auto-straighten") { model.applyPathOp("deskew") }
+Divider()
+Button("Effects studio...") { showStudio = true }
+Menu("More effects") {
+Button("Pixelate") { model.applyEffect("pixelate") }
+Button("Emboss") { model.applyEffect("emboss") }
+Button("Edge detect") { model.applyEffect("edge") }
+Button("Posterize") { model.applyEffect("posterize") }
+Button("Black and white") { model.applyEffect("bw") }
+Button("Solarize") { model.applyEffect("solarize") }
+Button("Colorize") { model.applyEffect("colorize") }
+Button("Gamma up") { model.applyEffect("gamma_up") }
+Button("Gamma down") { model.applyEffect("gamma_down") }
+Button("Hue rotate") { model.applyEffect("hue") }
+Button("More saturation") { model.applyEffect("saturate") }
+Button("Less saturation") { model.applyEffect("desaturate") }
+Button("RGB split") { model.applyEffect("rgb_split") }
+Button("Glow") { model.applyEffect("glow") }
+Button("Outline") { model.applyEffect("outline") }
+Button("Drop shadow") { model.applyEffect("shadow") }
+Button("Reflection") { model.applyEffect("reflection") }
+Button("Polaroid") { model.applyEffect("polaroid") }
+Button("Slice glitch") { model.applyEffect("slice") }
+Button("Torn edges") { model.applyEffect("torn_edge") }
+Button("Wave edges") { model.applyEffect("wave_edge") }
+Button("Replace white") { model.applyEffect("replace_white") }
+}
 }
 .frame(width: 86)
 Menu("Backdrop") {
@@ -364,6 +422,7 @@ Button { showStyle.toggle() } label: { RoundedRectangle(cornerRadius: 4).fill(mo
 .buttonStyle(.borderless)
 .help("Color and style")
 .popover(isPresented: $showStyle, arrowEdge: .bottom) { StylePopover(model: model) }
+.sheet(isPresented: $showStudio) { EffectStudioView(model: model) }
 Button { status = model.copyToClipboard() ? "copied" : "copy failed" } label: { Image(systemName: "doc.on.doc") }
 .keyboardShortcut("c", modifiers: [.command])
 .help("Copy to clipboard")
